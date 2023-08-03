@@ -1,4 +1,4 @@
-package uadguardhome
+package uadguard
 
 type Option func(*Upstream)
 

@@ -4,21 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"sync"
-	"time"
+
+	"github.com/buglloc/DNSGateway/internal/upstream"
 )
 
 type Listener struct {
-	dns *dns.Server
-	acl *ACL
-	mu  sync.Mutex
-	log zerolog.Logger
+	dns  *dns.Server
+	upsc upstream.Upstream
+	acl  *ACL
+	mu   sync.Mutex
+	log  zerolog.Logger
 }
 
-func NewListener(addr string, clients ...Client) (*Listener, error) {
+func NewListener(addr string, upsc upstream.Upstream, clients ...Client) (*Listener, error) {
 	tsigSecrets, err := TsigSecrets(clients...)
 	if err != nil {
 		return nil, fmt.Errorf("parse TSIG secrets: %w", err)
@@ -45,8 +49,9 @@ func NewListener(addr string, clients ...Client) (*Listener, error) {
 			},
 			MsgAcceptFunc: dnsMsgAcceptFunc,
 		},
-		acl: tsigACL,
-		log: logger,
+		upsc: upsc,
+		acl:  tsigACL,
+		log:  logger,
 	}
 
 	app.dns.Handler = app
@@ -115,17 +120,20 @@ func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 }
 
 func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg) {
-	//var rr dns.RR
-
 	log.Ctx(ctx).Info().Msg("handle query")
 	for _, q := range m.Question {
-		fmt.Println(q)
-		//if read_rr, e := getRecord(q.Name, q.Qtype); e == nil {
-		//	rr = read_rr.(dns.RR)
-		//	if rr.Header().Name == q.Name {
-		//		m.Answer = append(m.Answer, rr)
-		//	}
-		//}
+		rule, err := a.upsc.Query(ctx, q.Name, q.Qtype)
+		if err != nil {
+			continue
+		}
+
+		rr, err := rule.RR()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Str("name", rule.Name).Msg("unable to generate rr")
+			continue
+		}
+
+		m.Answer = append(m.Answer, rr)
 	}
 }
 

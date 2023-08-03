@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/AdguardTeam/urlfilter/rules"
-	"github.com/buglloc/DNSGateway/internal/commands"
-	_ "go.uber.org/automaxprocs"
 	"os"
+
+	"github.com/AdguardTeam/urlfilter/rules"
+	_ "go.uber.org/automaxprocs"
+
+	"github.com/buglloc/DNSGateway/internal/commands"
 )
 
 // Syntax: https://github.com/AdguardTeam/AdGuardHome/wiki/Hosts-Blocklists#adblock-style

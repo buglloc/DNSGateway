@@ -1,17 +1,19 @@
-package uadguardhome
+package uadguard
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/buglloc/DNSGateway/internal/upstream"
-	"github.com/go-resty/resty/v2"
-	"github.com/miekg/dns"
 	"net/http"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"github.com/buglloc/DNSGateway/internal/upstream"
+	"github.com/buglloc/DNSGateway/internal/upstream/uadguard/rules"
+	"github.com/buglloc/DNSGateway/internal/xhttp"
 )
 
 const (
@@ -25,24 +27,26 @@ var _ upstream.Upstream = (*Upstream)(nil)
 
 type Upstream struct {
 	httpc   *resty.Client
+	parser  *rules.Parser
 	log     zerolog.Logger
 	autoPTR bool
 }
 
 func NewUpstream(opts ...Option) (*Upstream, error) {
-	return NewClientWithHTTP(http.DefaultClient, opts...)
+	return NewUpstreamWithHTTP(xhttp.NewHTTPClient(), opts...)
 }
 
-func NewClientWithHTTP(httpc *http.Client, opts ...Option) (*Upstream, error) {
+func NewUpstreamWithHTTP(httpc *http.Client, opts ...Option) (*Upstream, error) {
 	client := &Upstream{
-		log: log.With().
-			Str("source", "agh-upstream").
-			Logger(),
 		httpc: resty.NewWithClient(httpc).
 			SetHeader("User-Agent", "DNSGateway").
 			SetHeader("Content-Type", "application/json").
 			SetRetryCount(DefaultRetries).
 			SetTimeout(DefaultTimeout),
+		log: log.With().
+			Str("source", "agh-upstream").
+			Logger(),
+		parser: rules.NewParser(rulesMarkerBegin, rulesMarkerEnd),
 	}
 
 	for _, opt := range opts {
@@ -55,22 +59,18 @@ func NewClientWithHTTP(httpc *http.Client, opts ...Option) (*Upstream, error) {
 	return client, nil
 }
 
-func (c *Upstream) Query(ctx context.Context, q dns.Question) (dns.RR, error) {
+func (c *Upstream) Query(ctx context.Context, name string, qType upstream.RType) (*upstream.Rule, error) {
 	rh, err := c.fetchRules(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	key := ruleKey{
-		Name:   q.Name,
-		RRType: q.Qtype,
-	}
-	rr, ok := rh.rules[key]
+	rr, ok := rh.ByName(name, qType)
 	if !ok {
 		return nil, errors.New("not found")
 	}
 
-	return ruleToRR(rr)
+	return rr.Rule, nil
 }
 
 func (c *Upstream) Tx(ctx context.Context) (upstream.Tx, error) {
@@ -86,7 +86,7 @@ func (c *Upstream) Tx(ctx context.Context) (upstream.Tx, error) {
 	}, nil
 }
 
-func (c *Upstream) fetchRules(ctx context.Context) (*rulesHolder, error) {
+func (c *Upstream) fetchRules(ctx context.Context) (*rules.Storage, error) {
 	var rsp FilteringStatusRsp
 	var errRsp ErrorRsp
 	httpRsp, err := c.httpc.R().
@@ -102,5 +102,5 @@ func (c *Upstream) fetchRules(ctx context.Context) (*rulesHolder, error) {
 		return nil, errors.New(errRsp.Message)
 	}
 
-	return parseRules(rsp.Rules)
+	return c.parser.Parse(rsp.Rules)
 }

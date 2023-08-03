@@ -2,11 +2,13 @@ package commands
 
 import (
 	"fmt"
-	"github.com/buglloc/DNSGateway/internal/config"
-	"github.com/rs/zerolog"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
+
+	"github.com/buglloc/DNSGateway/internal/config"
 )
 
 var rootArgs struct {

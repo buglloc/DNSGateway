@@ -1,4 +1,4 @@
-package uadguardhome
+package uadguard
 
 type ErrorRsp struct {
 	Message string `json:"message"`

@@ -1,11 +1,15 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"strings"
+
+	_ "github.com/knadh/koanf/v2"
+
 	"github.com/buglloc/DNSGateway/internal/listener"
 	"github.com/buglloc/DNSGateway/internal/listener/lrfc2136"
-	_ "github.com/knadh/koanf/v2"
-	"strings"
+	"github.com/buglloc/DNSGateway/internal/upstream"
 )
 
 type ListenerKind string
@@ -48,6 +52,10 @@ type Listener struct {
 }
 
 func (l *RFC2136Listener) Validate() error {
+	if l.Addr == "" {
+		return errors.New("addr is empty")
+	}
+
 	names := make(map[string]struct{})
 	for _, cl := range l.Clients {
 		_, exists := names[cl.Name]
@@ -64,15 +72,20 @@ func (l *RFC2136Listener) Validate() error {
 }
 
 func (r *Runtime) NewListener() (listener.Listener, error) {
+	upstream, err := r.NewUpstream()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create upstream for listener: %w", err)
+	}
+
 	switch r.cfg.Listener.Kind {
 	case ListenerKindRFC2136:
-		return r.newRFC2136Listener(r.cfg.Listener.RFC2136)
+		return r.newRFC2136Listener(upstream, r.cfg.Listener.RFC2136)
 	default:
 		return nil, fmt.Errorf("unsupported listener kind: %s", r.cfg.Listener.Kind)
 	}
 }
 
-func (r *Runtime) newRFC2136Listener(cfg RFC2136Listener) (*lrfc2136.Listener, error) {
+func (r *Runtime) newRFC2136Listener(upstream upstream.Upstream, cfg RFC2136Listener) (*lrfc2136.Listener, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid rfc2136 config: %w", err)
 	}
@@ -86,7 +99,7 @@ func (r *Runtime) newRFC2136Listener(cfg RFC2136Listener) (*lrfc2136.Listener, e
 		}
 	}
 
-	gw, err := lrfc2136.NewListener(cfg.Addr, clients...)
+	gw, err := lrfc2136.NewListener(cfg.Addr, upstream, clients...)
 	if err != nil {
 		return nil, fmt.Errorf("create rfc2136 listener: %w", err)
 	}

@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/miekg/dns"
 	"io"
 	"strings"
+
+	"github.com/miekg/dns"
 )
 
 type Parser struct {
@@ -23,7 +24,7 @@ func NewParser(beginMarker, endMarker string) *Parser {
 
 func (p *Parser) Parse(in []string) (*Storage, error) {
 	var beforeLen, afterRulesIdx int
-	ourRules := make(map[StoreKay]Rule)
+	ourRules := make(map[StoreKey]Rule)
 	inOurRules := false
 	for i, r := range in {
 		if !inOurRules {

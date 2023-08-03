@@ -3,12 +3,13 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
 )
 
 var startCmd = &cobra.Command{

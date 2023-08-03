@@ -2,22 +2,32 @@ package rules
 
 import (
 	"fmt"
-	"github.com/buglloc/DNSGateway/internal/upstream"
-	"github.com/miekg/dns"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/miekg/dns"
+
+	"github.com/buglloc/DNSGateway/internal/upstream"
 )
 
 type Rule struct {
-	UpstreamRule *upstream.Rule
+	*upstream.Rule
 }
 
-func (r *Rule) Key() StoreKay {
-	return StoreKay{
-		Name: r.UpstreamRule.Name,
-		Type: r.UpstreamRule.Type,
+func (r *Rule) Key() StoreKey {
+	return StoreKey{
+		Name: r.Name,
+		Type: r.Type,
 	}
+}
+
+func (r *Rule) Format() string {
+	value := fmt.Sprint(r.Value)
+	return fmt.Sprintf(
+		"|%s^$dnsrewrite=NOERROR;%s;%s",
+		unFqdn(r.Name), dns.TypeToString[r.Type], unFqdn(value),
+	)
 }
 
 func newRule(name string, rrType uint16, valStr string) (Rule, error) {
@@ -54,7 +64,7 @@ func newRule(name string, rrType uint16, valStr string) (Rule, error) {
 	}
 
 	return Rule{
-		UpstreamRule: uRule,
+		Rule: uRule,
 	}, nil
 }
 
@@ -209,5 +219,3 @@ func parseIP(in string) net.IP {
 
 	return net.ParseIP(in)
 }
-
-var ReverseAddr = dns.ReverseAddr
