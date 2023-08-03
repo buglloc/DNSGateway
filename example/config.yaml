@@ -1,0 +1,9 @@
+gateway:
+  kind: rfc2136
+  rfc2136:
+    addr: :5454
+    clients:
+      - name: tst.
+        secret: NzBjOTU4OTVlOTZlOTg5OGQwYTUxYTdjNWYzNTI3NzA5YjIyZTIxNWVjOTc3NWMxNzIxZjdjN2ExNjliNDc1ZCAgLQo=
+        zones:
+          test.lala.
