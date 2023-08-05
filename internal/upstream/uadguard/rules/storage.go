@@ -54,9 +54,5 @@ func (s *Storage) Dump() []string {
 		out = append(out, rule.Format())
 	}
 
-	for _, rule := range s.after {
-		out = append(out, rule)
-	}
-
-	return out
+	return append(out, s.after...)
 }
