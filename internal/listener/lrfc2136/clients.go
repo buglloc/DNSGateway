@@ -3,16 +3,14 @@ package lrfc2136
 import (
 	"fmt"
 	"strings"
-
-	"github.com/miekg/dns"
 )
 
 type Client struct {
-	Name        string
-	Secret      string
-	AxfrAllowed bool
-	AutoDelete  bool
-	Zones       []string
+	Name       string
+	Secret     string
+	XFRAllowed bool
+	AutoDelete bool
+	Zones      []string
 }
 
 type Clients struct {
@@ -23,13 +21,8 @@ func (a *Clients) ShouldAutoDelete(clientName string) bool {
 	return a.clients[clientName].AutoDelete
 }
 
-func (a *Clients) IsQTypeAllowed(clientName string, qtype uint16) bool {
-	switch qtype {
-	case dns.TypeAXFR:
-		return a.clients[clientName].AxfrAllowed
-	}
-
-	return true
+func (a *Clients) IsXFRAllowed(clientName string) bool {
+	return a.clients[clientName].XFRAllowed
 }
 
 func (a *Clients) IsNameAllowed(clientName, name string) bool {

@@ -36,11 +36,11 @@ func (k ListenerKind) MarshalText() ([]byte, error) {
 }
 
 type Client struct {
-	Name        string   `koanf:"name"`
-	Secret      string   `koanf:"secret"`
-	AxfrAllowed bool     `koanf:"axfr_allowed"`
-	AutoDelete  bool     `koanf:"auto_delete"`
-	Zones       []string `koanf:"zones"`
+	Name       string   `koanf:"name"`
+	Secret     string   `koanf:"secret"`
+	XFRAllowed bool     `koanf:"xfr_allowed"`
+	AutoDelete bool     `koanf:"auto_delete"`
+	Zones      []string `koanf:"zones"`
 }
 
 type RFC2136Listener struct {
@@ -99,11 +99,11 @@ func (r *Runtime) newRFC2136Listener(u upstream.Upstream, cfg RFC2136Listener) (
 
 	for _, cl := range cfg.Clients {
 		lCfg.AppendClient(lrfc2136.Client{
-			Name:        cl.Name,
-			Secret:      cl.Secret,
-			Zones:       cl.Zones,
-			AxfrAllowed: cl.AxfrAllowed,
-			AutoDelete:  cl.AutoDelete,
+			Name:       cl.Name,
+			Secret:     cl.Secret,
+			Zones:      cl.Zones,
+			XFRAllowed: cl.XFRAllowed,
+			AutoDelete: cl.AutoDelete,
 		})
 	}
 
