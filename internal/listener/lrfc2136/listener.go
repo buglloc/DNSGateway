@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -211,16 +212,26 @@ func (a *Listener) handleXFR(ctx context.Context, q dns.Question, out chan *dns.
 		return
 	}
 
-	out <- &dns.Envelope{
+	const xfrTTL = 60
+	xfrMarker := &dns.Envelope{
 		RR: []dns.RR{
 			&dns.SOA{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
 					Rrtype: dns.TypeSOA,
 				},
+				Ns:      q.Name,
+				Mbox:    q.Name,
+				Serial:  uint32(time.Now().Unix() % math.MaxUint32),
+				Refresh: xfrTTL,
+				Retry:   xfrTTL,
+				Expire:  xfrTTL,
 			},
 		},
 	}
+
+	out <- xfrMarker
+	defer func() { out <- xfrMarker }()
 
 	const chunkSize = 64
 	for i := 0; i < len(rules); i += chunkSize {
