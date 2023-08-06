@@ -28,7 +28,11 @@ func (r *Rule) SameUpstreamRule(other *upstream.Rule) bool {
 }
 
 func (r *Rule) Format() string {
-	value := EscapeString(fmt.Sprint(r.Value))
+	value := r.ValueStr
+	if value == "" {
+		value = fmt.Sprint(r.Value)
+	}
+
 	name := unFqdn(r.Name)
 	if strictName := strings.TrimPrefix(name, "*."); strictName != name {
 		name = "|" + strictName
@@ -36,7 +40,7 @@ func (r *Rule) Format() string {
 
 	return fmt.Sprintf(
 		"|%s^$dnsrewrite=NOERROR;%s;%s",
-		name, dns.TypeToString[r.Type], unFqdn(value),
+		name, dns.TypeToString[r.Type], unFqdn(EscapeString(value)),
 	)
 }
 

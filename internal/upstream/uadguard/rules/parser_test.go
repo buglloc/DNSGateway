@@ -204,6 +204,47 @@ func TestParseRule(t *testing.T) {
 			},
 		},
 		{
+			in: `|example.com^$dnsrewrite=NOERROR;MX;10 mail1.example.com`,
+			out: Rule{
+				Rule: &upstream.Rule{
+					Name: "example.com.",
+					Type: dns.TypeMX,
+					Value: &dns.MX{
+						Preference: 10,
+						Mx:         "mail1.example.com",
+					},
+					ValueStr: "10 mail1.example.com",
+				},
+			},
+		},
+		{
+			in: `|10.10.10.10.in-addr.arpa^$dnsrewrite=NOERROR;PTR;example.tsts`,
+			out: Rule{
+				Rule: &upstream.Rule{
+					Name:     "10.10.10.10.in-addr.arpa.",
+					Type:     dns.TypePTR,
+					Value:    "example.tsts.",
+					ValueStr: "example.tsts.",
+				},
+			},
+		},
+		{
+			in: `|srv.tsts^$dnsrewrite=NOERROR;SRV;10 5 5223 server.tsts`,
+			out: Rule{
+				Rule: &upstream.Rule{
+					Name: "srv.tsts.",
+					Type: dns.TypeSRV,
+					Value: &dns.SRV{
+						Priority: 10,
+						Weight:   5,
+						Port:     5223,
+						Target:   "server.tsts",
+					},
+					ValueStr: "10 5 5223 server.tsts",
+				},
+			},
+		},
+		{
 			in:  "|ya.ru^$dnsrewrite=REFUSED;;",
 			err: true,
 		},

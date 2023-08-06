@@ -33,27 +33,37 @@ type Rule struct {
 
 func RuleFromRR(rr dns.RR) (Rule, error) {
 	var value any
+	var valueStr string
 	switch v := rr.(type) {
 	case *dns.A:
 		value = v.A
+		valueStr = v.A.String()
 
 	case *dns.AAAA:
 		value = v.AAAA
+		valueStr = v.AAAA.String()
 
 	case *dns.CNAME:
 		value = v.Target
+		valueStr = v.Target
 
 	case *dns.MX:
 		value = v
+		valueStr = fmt.Sprintf("%d %s", v.Preference, v.Mx)
 
 	case *dns.PTR:
 		value = v.Ptr
+		valueStr = v.Ptr
 
 	case *dns.TXT:
 		value = v.Txt
+		if len(v.Txt) > 0 {
+			valueStr = v.Txt[0]
+		}
 
 	case *dns.SRV:
 		value = v
+		valueStr = fmt.Sprintf("%d %d %d %s", v.Priority, v.Weight, v.Priority, v.Target)
 
 	default:
 		return Rule{}, fmt.Errorf("unsupported rr: %s", rr)
@@ -63,7 +73,7 @@ func RuleFromRR(rr dns.RR) (Rule, error) {
 		Name:     dns.Fqdn(rr.Header().Name),
 		Type:     rr.Header().Rrtype,
 		Value:    value,
-		ValueStr: fmt.Sprint(value),
+		ValueStr: valueStr,
 	}, nil
 }
 
