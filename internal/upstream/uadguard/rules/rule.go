@@ -20,19 +20,11 @@ func (r *Rule) Same(other Rule) bool {
 }
 
 func (r *Rule) SameUpstreamRule(other *upstream.Rule) bool {
-	if other.Type != 0 && other.Type != r.Type {
-		return false
+	if other.Type == dns.TypeAXFR {
+		return r.matchAxfrRule(other)
 	}
 
-	if other.Name != "" && other.Name != r.Name {
-		return false
-	}
-
-	if other.ValueStr != "" && other.ValueStr != r.ValueStr {
-		return false
-	}
-
-	return true
+	return r.matchPlainRule(other)
 }
 
 func (r *Rule) Format() string {
@@ -46,6 +38,34 @@ func (r *Rule) Format() string {
 		"|%s^$dnsrewrite=NOERROR;%s;%s",
 		name, dns.TypeToString[r.Type], unFqdn(value),
 	)
+}
+
+func (r *Rule) matchAxfrRule(other *upstream.Rule) bool {
+	if strings.HasSuffix(r.Name, other.Name) {
+		return true
+	}
+
+	if strings.HasSuffix(r.ValueStr, other.Name) {
+		return true
+	}
+
+	return false
+}
+
+func (r *Rule) matchPlainRule(other *upstream.Rule) bool {
+	if other.Type != 0 && other.Type != r.Type {
+		return false
+	}
+
+	if other.Name != "" && other.Name != r.Name {
+		return false
+	}
+
+	if other.ValueStr != "" && other.ValueStr != r.ValueStr {
+		return false
+	}
+
+	return true
 }
 
 func newRule(name string, rrType uint16, valStr string) (Rule, error) {

@@ -104,6 +104,24 @@ func TestSrvMock(t *testing.T) {
 	}
 	require.EqualValues(t, re, rr[0])
 
+	axfrRules, err := c.Query(context.Background(), upstream.Rule{Type: dns.TypeAXFR})
+	require.NoError(t, err)
+	expectedAXFRRules := []upstream.Rule{
+		upstream.Rule{
+			Name:     "ya.ru.",
+			Type:     dns.TypeA,
+			Value:    net.ParseIP("1.2.3.3"),
+			ValueStr: "1.2.3.3",
+		},
+		{
+			Name:     "3.3.2.1.in-addr.arpa.",
+			Type:     dns.TypePTR,
+			Value:    "ya.ru.",
+			ValueStr: "ya.ru.",
+		},
+	}
+	require.EqualValues(t, expectedAXFRRules, axfrRules)
+
 	tx, err := c.Tx(context.Background())
 	require.NoError(t, err)
 

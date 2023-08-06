@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -64,10 +63,6 @@ func (c *Upstream) Query(ctx context.Context, r upstream.Rule) ([]upstream.Rule,
 	rh, err := c.fetchRules(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if r.Type == dns.TypeAXFR {
-		return rh.Rules(), nil
 	}
 
 	return rh.Query(r), nil

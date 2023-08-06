@@ -155,7 +155,7 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 		}
 
 		rules, err := a.upsc.Query(ctx, upstream.Rule{
-			Name: q.Name,
+			Name: dns.Fqdn(q.Name),
 			Type: q.Qtype,
 		})
 		if err != nil {
@@ -186,7 +186,7 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 	shouldAutoDelete := a.clients.ShouldAutoDelete(m.IsTsig().Hdr.Name)
 	handleUpdate := func(rr dns.RR) error {
 		header := rr.Header()
-		name := header.Name
+		name := dns.Fqdn(header.Name)
 		l := log.Ctx(ctx).With().Str("name", name).Logger()
 
 		if _, ok := dns.IsDomainName(name); !ok {
