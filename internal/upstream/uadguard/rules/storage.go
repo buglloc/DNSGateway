@@ -10,6 +10,15 @@ type Storage struct {
 	rules  []Rule
 }
 
+func (s *Storage) Rules() []upstream.Rule {
+	out := make([]upstream.Rule, len(s.rules))
+	for i, r := range s.rules {
+		out[i] = *r.Rule
+	}
+
+	return out
+}
+
 func (s *Storage) Query(q upstream.Rule) []upstream.Rule {
 	var out []upstream.Rule
 	for _, rule := range s.rules {

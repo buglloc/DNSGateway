@@ -60,7 +60,7 @@ func RuleFromRR(rr dns.RR) (Rule, error) {
 	}
 
 	return Rule{
-		Name:     rr.Header().Name,
+		Name:     dns.Fqdn(rr.Header().Name),
 		Type:     rr.Header().Rrtype,
 		Value:    value,
 		ValueStr: fmt.Sprint(value),

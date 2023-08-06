@@ -18,7 +18,7 @@ import (
 type Listener struct {
 	listeners []*dns.Server
 	upsc      upstream.Upstream
-	acl       *ACL
+	clients   *Clients
 	mu        sync.Mutex
 	log       zerolog.Logger
 }
@@ -33,7 +33,7 @@ func NewListener(cfg *Config) (*Listener, error) {
 		return nil, fmt.Errorf("parse TSIG secrets: %w", err)
 	}
 
-	tsigACL, err := TsigACL(cfg.clients...)
+	tsigClients, err := TsigClients(cfg.clients...)
 	if err != nil {
 		return nil, fmt.Errorf("parse TSIG ACLs: %w", err)
 	}
@@ -45,7 +45,7 @@ func NewListener(cfg *Config) (*Listener, error) {
 	app := &Listener{
 		listeners: make([]*dns.Server, len(cfg.nets)),
 		upsc:      cfg.upstream,
-		acl:       tsigACL,
+		clients:   tsigClients,
 		log:       logger,
 	}
 
@@ -149,8 +149,13 @@ func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 	log.Ctx(ctx).Info().Msg("handle query")
 	for _, q := range r.Question {
+		if !a.clients.IsQTypeAllowed(m.IsTsig().Hdr.Name, q.Qtype) {
+			log.Ctx(ctx).Warn().Str("qtype", dns.TypeToString[q.Qtype]).Msg("qtype is dissallowed")
+			continue
+		}
+
 		rules, err := a.upsc.Query(ctx, upstream.Rule{
-			Name: q.Name,
+			Name: dns.Fqdn(q.Name),
 			Type: q.Qtype,
 		})
 		if err != nil {
@@ -178,16 +183,17 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 		return
 	}
 
+	shouldAutoDelete := a.clients.ShouldAutoDelete(m.IsTsig().Hdr.Name)
 	handleUpdate := func(rr dns.RR) error {
 		header := rr.Header()
-		name := header.Name
+		name := dns.Fqdn(header.Name)
 		l := log.Ctx(ctx).With().Str("name", name).Logger()
 
 		if _, ok := dns.IsDomainName(name); !ok {
 			return errors.New("invalid domain name")
 		}
 
-		if !a.acl.IsAllow(m.IsTsig().Hdr.Name, name) {
+		if !a.clients.IsNameAllowed(m.IsTsig().Hdr.Name, name) {
 			return fmt.Errorf("%q is not allowed for client %q", name, m.IsTsig().Hdr.Name)
 		}
 
@@ -206,6 +212,13 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 		rule, err := upstream.RuleFromRR(rr)
 		if err != nil {
 			return fmt.Errorf("parse RR: %w", err)
+		}
+
+		if shouldAutoDelete {
+			_ = tx.Delete(upstream.Rule{
+				Name: rule.Name,
+				Type: rule.Type,
+			})
 		}
 
 		if err := tx.Append(rule); err != nil {
