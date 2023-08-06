@@ -219,6 +219,7 @@ func (a *Listener) handleXFR(ctx context.Context, q dns.Question, out chan *dns.
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
 					Rrtype: dns.TypeSOA,
+					Class:  dns.ClassINET,
 				},
 				Ns:      q.Name,
 				Mbox:    q.Name,
