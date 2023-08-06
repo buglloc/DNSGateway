@@ -81,6 +81,7 @@ func (r *Rule) RR() (dns.RR, error) {
 	hdr := dns.RR_Header{
 		Name:   r.Name,
 		Rrtype: r.Type,
+		Class:  dns.ClassINET,
 	}
 
 	switch r.Type {
