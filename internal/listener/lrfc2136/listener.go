@@ -148,18 +148,19 @@ func (a *Listener) lockedServeXFR(ctx context.Context, w dns.ResponseWriter, r *
 
 	ch := make(chan *dns.Envelope)
 	tr := new(dns.Transfer)
-	var wg sync.WaitGroup
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
+
 		if err := tr.Out(w, r, ch); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("unable to write transfer")
 		}
-		wg.Done()
 	}()
 
 	a.handleXFR(ctx, r.Question[0], ch)
 	close(ch)
 
-	wg.Wait()
+	<-done
 	_ = w.Close()
 	return nil
 }
@@ -208,6 +209,17 @@ func (a *Listener) handleXFR(ctx context.Context, q dns.Question, out chan *dns.
 			Error: err,
 		}
 		return
+	}
+
+	out <- &dns.Envelope{
+		RR: []dns.RR{
+			&dns.SOA{
+				Hdr: dns.RR_Header{
+					Name:   q.Name,
+					Rrtype: dns.TypeSOA,
+				},
+			},
+		},
 	}
 
 	const chunkSize = 64
