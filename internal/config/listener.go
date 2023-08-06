@@ -38,9 +38,9 @@ func (k ListenerKind) MarshalText() ([]byte, error) {
 type Client struct {
 	Name        string   `koanf:"name"`
 	Secret      string   `koanf:"secret"`
+	AxfrAllowed bool     `koanf:"axfr_allowed"`
+	AutoDelete  bool     `koanf:"auto_delete"`
 	Zones       []string `koanf:"zones"`
-	AxfrAllowed bool     `koanf:"axfr-allowed"`
-	AutoDelete  bool     `koanf:"auto-delete"`
 }
 
 type RFC2136Listener struct {

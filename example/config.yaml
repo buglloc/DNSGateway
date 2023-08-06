@@ -5,6 +5,7 @@ listener:
     clients:
       - name: tst.
         secret: NzBjOTU4OTVlOTZlOTg5OGQwYTUxYTdjNWYzNTI3NzA5YjIyZTIxNWVjOTc3NWMxNzIxZjdjN2ExNjliNDc1ZCAgLQo=
+        axfr_allowed: true
         zones:
           test.lala.
 upstream:

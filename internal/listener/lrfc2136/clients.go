@@ -10,9 +10,9 @@ import (
 type Client struct {
 	Name        string
 	Secret      string
-	Zones       []string
 	AxfrAllowed bool
 	AutoDelete  bool
+	Zones       []string
 }
 
 type Clients struct {
