@@ -193,6 +193,17 @@ func TestParseRule(t *testing.T) {
 			},
 		},
 		{
+			in: `|k3s-lab-a-yawg.pve.buglloc.cc^$dnsrewrite=NOERROR;TXT;heritage=external-dns\,external-dns\/owner=thailab\,external-dns\/resource=service\/external-services\/pve-mahine-yawg`,
+			out: Rule{
+				Rule: &upstream.Rule{
+					Name:     "k3s-lab-a-yawg.pve.buglloc.cc.",
+					Type:     dns.TypeTXT,
+					Value:    "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
+					ValueStr: "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
+				},
+			},
+		},
+		{
 			in:  "|ya.ru^$dnsrewrite=REFUSED;;",
 			err: true,
 		},
@@ -216,6 +227,97 @@ func TestParseRule(t *testing.T) {
 
 			ruleStr := strings.TrimSuffix(tc.in, ".")
 			require.Equal(t, ruleStr, actual.Format())
+		})
+	}
+}
+
+func TestFormat(t *testing.T) {
+	cases := []struct {
+		out string
+		in  Rule
+	}{
+		{
+			out: "|4.3.2.1.in-addr.arpa^$dnsrewrite=NOERROR;PTR;example.net",
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "4.3.2.1.in-addr.arpa.",
+					Type:     dns.TypePTR,
+					Value:    "example.net.",
+					ValueStr: "example.net.",
+				},
+			},
+		},
+		{
+			out: "|2.0.0.0.0.0.0.0.4.f.7.0.0.0.0.0.0.0.4.3.0.0.0.0.8.b.6.0.2.0.a.2.ip6.arpa^$dnsrewrite=NOERROR;PTR;example.net",
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "2.0.0.0.0.0.0.0.4.f.7.0.0.0.0.0.0.0.4.3.0.0.0.0.8.b.6.0.2.0.a.2.ip6.arpa.",
+					Type:     dns.TypePTR,
+					Value:    "example.net.",
+					ValueStr: "example.net.",
+				},
+			},
+		},
+		{
+			out: "|ya.ru^$dnsrewrite=NOERROR;A;1.2.3.3",
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "ya.ru.",
+					Type:     dns.TypeA,
+					Value:    net.ParseIP("1.2.3.3"),
+					ValueStr: "1.2.3.3",
+				},
+			},
+		},
+		{
+			out: "|ya.ru^$dnsrewrite=NOERROR;AAAA;::1",
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "ya.ru.",
+					Type:     dns.TypeAAAA,
+					Value:    net.ParseIP("::1"),
+					ValueStr: "::1",
+				},
+			},
+		},
+		{
+			out: "|ya.ru^$dnsrewrite=NOERROR;CNAME;google.com",
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "ya.ru.",
+					Type:     dns.TypeCNAME,
+					Value:    "google.com.",
+					ValueStr: "google.com.",
+				},
+			},
+		},
+		{
+			out: "||ya.ru^$dnsrewrite=NOERROR;CNAME;google.com",
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "*.ya.ru.",
+					Type:     dns.TypeCNAME,
+					Value:    "google.com.",
+					ValueStr: "google.com.",
+				},
+			},
+		},
+		{
+			out: `|k3s-lab-a-yawg.pve.buglloc.cc^$dnsrewrite=NOERROR;TXT;heritage=external-dns\,external-dns\/owner=thailab\,external-dns\/resource=service\/external-services\/pve-mahine-yawg`,
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "k3s-lab-a-yawg.pve.buglloc.cc.",
+					Type:     dns.TypeTXT,
+					Value:    "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
+					ValueStr: "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.out, func(t *testing.T) {
+			require.Equal(t, tc.out, tc.in.Format())
 		})
 	}
 }

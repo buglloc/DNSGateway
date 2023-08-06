@@ -28,7 +28,7 @@ func (r *Rule) SameUpstreamRule(other *upstream.Rule) bool {
 }
 
 func (r *Rule) Format() string {
-	value := fmt.Sprint(r.Value)
+	value := EscapeString(fmt.Sprint(r.Value))
 	name := unFqdn(r.Name)
 	if strictName := strings.TrimPrefix(name, "*."); strictName != name {
 		name = "|" + strictName
@@ -196,6 +196,7 @@ func newRulePTR(name string, valStr string) (*upstream.Rule, error) {
 }
 
 func newRuleTXT(name string, valStr string) (*upstream.Rule, error) {
+	valStr = UnescapeString(strings.TrimSpace(valStr))
 	return &upstream.Rule{
 		Name:     name,
 		Type:     dns.TypeTXT,
