@@ -1,10 +1,10 @@
-package errors
+package dnserr
 
 import (
 	"fmt"
 )
 
-//go:generate  go run ./errsgen --pkg errors --out dns_error.errs.go
+//go:generate  go run ./errsgen --pkg dnserr --out dns_error.errs.go
 
 type DNSError struct {
 	RCode  int

@@ -20,14 +20,6 @@ var errNames = []string{
 	"RcodeNXRrset",
 	"RcodeNotAuth",
 	"RcodeNotZone",
-	"RcodeBadSig",
-	"RcodeBadKey",
-	"RcodeBadTime",
-	"RcodeBadMode",
-	"RcodeBadName",
-	"RcodeBadAlg",
-	"RcodeBadTrunc",
-	"RcodeBadCookie",
 }
 
 func errVar(rcode string) string {

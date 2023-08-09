@@ -2,10 +2,13 @@ package middlewares
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
+
+	"github.com/buglloc/DNSGateway/internal/listener/lrfc2136/dnserr"
 )
 
 type HandleFn func(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error
@@ -28,6 +31,12 @@ func Responser(fn HandleFn) NextFn {
 		}
 
 		log.Ctx(ctx).Error().Err(err).Msg("request failed")
+		var dnsErr *dnserr.DNSError
+		if errors.As(err, &dnsErr) {
+			WriteResponse(ctx, w, r, dnsErr.RCode)
+			return
+		}
+
 		WriteResponse(ctx, w, r, dns.RcodeServerFailure)
 	}
 }
