@@ -35,6 +35,7 @@ func Responser(fn HandleFn) NextFn {
 func WriteResponse(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, rcode int) {
 	m := new(dns.Msg)
 	m.SetRcode(r, rcode)
+
 	if tsig := r.IsTsig(); tsig != nil {
 		m.SetTsig(tsig.Hdr.Name, dns.HmacSHA256, 300, time.Now().Unix())
 	}
