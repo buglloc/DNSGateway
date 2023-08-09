@@ -149,7 +149,13 @@ func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 }
 
 func (a *Listener) handleXFRTransfer(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
-	if !a.clients.IsXFRAllowed(r.IsTsig().Hdr.Name) {
+	log.Ctx(ctx).Info().Msg("handle XFR transfer")
+	client, err := a.clients.Client(r)
+	if err != nil {
+		return err
+	}
+
+	if client.IsXFRAllowed() {
 		return fmt.Errorf("XFR is not allowed for client %q", r.IsTsig().Hdr.Name)
 	}
 
@@ -240,14 +246,24 @@ func (a *Listener) handleXFRQuestion(ctx context.Context, q dns.Question, out ch
 
 func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) error {
 	log.Ctx(ctx).Info().Msg("handle query")
+	client, err := a.clients.Client(r)
+	if err != nil {
+		return err
+	}
+
 	for _, q := range r.Question {
 		if isXRFQuestion(q) {
 			log.Ctx(ctx).Warn().Msg("unexpected XFR request ignored")
 			continue
 		}
 
+		name := dns.Fqdn(q.Name)
+		if !client.IsNameAllowed(q.Name) {
+			return fmt.Errorf("%q is not allowed for client %q", name, client.Name)
+		}
+
 		rules, err := a.upsc.Query(ctx, upstream.Rule{
-			Name: dns.Fqdn(q.Name),
+			Name: name,
 			Type: q.Qtype,
 		})
 		if err != nil {
@@ -272,6 +288,10 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) erro
 
 func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) error {
 	log.Ctx(ctx).Info().Msg("handle updates")
+	client, err := a.clients.Client(r)
+	if err != nil {
+		return err
+	}
 
 	tx, err := a.upsc.Tx(ctx)
 	if err != nil {
@@ -281,7 +301,6 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) er
 		)
 	}
 
-	shouldAutoDelete := a.clients.ShouldAutoDelete(m.IsTsig().Hdr.Name)
 	handleUpdate := func(rr dns.RR) error {
 		header := rr.Header()
 		name := dns.Fqdn(header.Name)
@@ -291,8 +310,18 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) er
 			return errors.New("invalid domain name")
 		}
 
-		if !a.clients.IsNameAllowed(m.IsTsig().Hdr.Name, name) {
-			return fmt.Errorf("%q is not allowed for client %q", name, m.IsTsig().Hdr.Name)
+		if !client.IsNameAllowed(name) {
+			return fmt.Errorf(
+				"%q is not allowed for client %q",
+				name, client.Name,
+			)
+		}
+
+		if !client.IsTypeAllowed(header.Rrtype) {
+			return fmt.Errorf(
+				"%q record type is not allowed for client %q",
+				dns.TypeToString[header.Rrtype], client.Name,
+			)
 		}
 
 		if header.Class == dns.ClassANY && header.Rdlength == 0 {
@@ -312,7 +341,7 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) er
 			return fmt.Errorf("parse RR: %w", err)
 		}
 
-		if shouldAutoDelete {
+		if client.ShouldAutoDelete() {
 			_ = tx.Delete(upstream.Rule{
 				Name: rule.Name,
 				Type: rule.Type,

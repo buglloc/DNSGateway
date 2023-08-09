@@ -41,6 +41,7 @@ type Client struct {
 	XFRAllowed bool     `koanf:"xfr_allowed"`
 	AutoDelete bool     `koanf:"auto_delete"`
 	Zones      []string `koanf:"zones"`
+	Types      []string `koanf:"types"`
 }
 
 type RFC2136Listener struct {
@@ -98,12 +99,18 @@ func (r *Runtime) newRFC2136Listener(u upstream.Upstream, cfg RFC2136Listener) (
 		Upstream(u)
 
 	for _, cl := range cfg.Clients {
+		rrTypes, err := lrfc2136.ParseTypesSet(cl.Types)
+		if err != nil {
+			return nil, fmt.Errorf("invalid client %q types: %w", cl.Name, err)
+		}
+
 		lCfg.AppendClient(lrfc2136.Client{
 			Name:       cl.Name,
 			Secret:     cl.Secret,
 			Zones:      cl.Zones,
 			XFRAllowed: cl.XFRAllowed,
 			AutoDelete: cl.AutoDelete,
+			Types:      rrTypes,
 		})
 	}
 
