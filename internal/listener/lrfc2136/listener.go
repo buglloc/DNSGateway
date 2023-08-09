@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/buglloc/DNSGateway/internal/listener/lrfc2136/middlewares"
 	"github.com/buglloc/DNSGateway/internal/upstream"
 )
 
@@ -109,33 +110,41 @@ func (a *Listener) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		l.Error().Err(err).Msg("request failed")
 
 		m := new(dns.Msg)
-		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeServerFailure)
 		_ = w.WriteMsg(m)
 	}
 }
 
 func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
-	tsig := r.IsTsig()
-	if tsig == nil {
-		return errors.New("missing TSIG")
-	}
-
-	if err := w.TsigStatus(); err != nil {
-		return fmt.Errorf("invalid TSIG: %w", err)
-	}
+	var responser middlewares.NextFn
 
 	switch r.Opcode {
 	case dns.OpcodeQuery:
 		if isXRFRequest(r) {
-			return a.logRequest(ctx, w, r, a.lockedServeXFR)
+			responser = middlewares.NopResponser(a.lockedServeXFR)
+			break
 		}
-		return a.logRequest(ctx, w, r, a.lockedServeQuery)
+
+		responser = middlewares.Responser(a.lockedServeQuery)
 
 	case dns.OpcodeUpdate:
-		return a.logRequest(ctx, w, r, a.lockedServeUpdate)
+		responser = middlewares.Responser(a.lockedServeUpdate)
+
+	default:
+		responser = middlewares.Responser(func(_ context.Context, _ dns.ResponseWriter, _ *dns.Msg) error {
+			return fmt.Errorf("unsupported opcode: %s", dns.OpcodeToString[r.Opcode])
+		})
 	}
 
-	return fmt.Errorf("unsupported opcode: %s", dns.OpcodeToString[r.Opcode])
+	middlewares.Logger(
+		middlewares.Recoverer(
+			middlewares.TSIGChecker(
+				responser,
+			),
+		),
+	)(ctx, w, r)
+
+	return nil
 }
 
 func (a *Listener) lockedServeXFR(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
@@ -188,13 +197,6 @@ func (a *Listener) lockedServeUpdate(ctx context.Context, w dns.ResponseWriter, 
 	}
 
 	return nil
-}
-
-func (a *Listener) logRequest(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, fn func(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error) error {
-	now := time.Now()
-	err := fn(ctx, w, r)
-	log.Ctx(ctx).Info().Dur("elapsed", time.Since(now)).Msg("finished")
-	return err
 }
 
 func (a *Listener) handleXFR(ctx context.Context, q dns.Question, out chan *dns.Envelope) {
