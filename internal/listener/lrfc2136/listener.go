@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/buglloc/DNSGateway/internal/listener/lrfc2136/dnserr"
 	"github.com/buglloc/DNSGateway/internal/listener/lrfc2136/middlewares"
 	"github.com/buglloc/DNSGateway/internal/upstream"
 )
@@ -121,17 +122,17 @@ func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 	switch r.Opcode {
 	case dns.OpcodeQuery:
 		if isXRFRequest(r) {
-			responser = middlewares.NopResponser(a.lockedServeXFR)
+			responser = middlewares.RawResponder(a.handleXFRTransfer)
 			break
 		}
 
-		responser = middlewares.Responser(a.lockedServeQuery)
+		responser = middlewares.MsgResponder(a.handleQuery)
 
 	case dns.OpcodeUpdate:
-		responser = middlewares.Responser(a.lockedServeUpdate)
+		responser = middlewares.MsgResponder(a.handleUpdates)
 
 	default:
-		responser = middlewares.Responser(func(_ context.Context, _ dns.ResponseWriter, _ *dns.Msg) error {
+		responser = middlewares.MsgResponder(func(_ context.Context, _ *dns.Msg, _ *dns.Msg) error {
 			return fmt.Errorf("unsupported opcode: %s", dns.OpcodeToString[r.Opcode])
 		})
 	}
@@ -147,7 +148,7 @@ func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 	return nil
 }
 
-func (a *Listener) lockedServeXFR(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
+func (a *Listener) handleXFRTransfer(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
 	if !a.clients.IsXFRAllowed(r.IsTsig().Hdr.Name) {
 		return fmt.Errorf("XFR is not allowed for client %q", r.IsTsig().Hdr.Name)
 	}
@@ -167,7 +168,7 @@ func (a *Listener) lockedServeXFR(ctx context.Context, w dns.ResponseWriter, r *
 		}
 	}()
 
-	a.handleXFR(ctx, r.Question[0], ch)
+	a.handleXFRQuestion(ctx, r.Question[0], ch)
 	close(ch)
 
 	<-done
@@ -175,31 +176,7 @@ func (a *Listener) lockedServeXFR(ctx context.Context, w dns.ResponseWriter, r *
 	return nil
 }
 
-func (a *Listener) lockedServeQuery(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
-	m := new(dns.Msg)
-	m.SetReply(r)
-	m.SetTsig(r.IsTsig().Hdr.Name, dns.HmacSHA256, 300, time.Now().Unix())
-	a.handleQuery(ctx, m, r)
-	if err := w.WriteMsg(m); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("write failed")
-	}
-
-	return nil
-}
-
-func (a *Listener) lockedServeUpdate(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
-	m := new(dns.Msg)
-	m.SetReply(r)
-	m.SetTsig(r.IsTsig().Hdr.Name, dns.HmacSHA256, 300, time.Now().Unix())
-	a.handleUpdates(ctx, m, r)
-	if err := w.WriteMsg(m); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("write failed")
-	}
-
-	return nil
-}
-
-func (a *Listener) handleXFR(ctx context.Context, q dns.Question, out chan *dns.Envelope) {
+func (a *Listener) handleXFRQuestion(ctx context.Context, q dns.Question, out chan *dns.Envelope) {
 	log.Ctx(ctx).Info().Str("name", q.Name).Msg("handle XFR request")
 
 	rules, err := a.upsc.Query(ctx, upstream.Rule{
@@ -261,7 +238,7 @@ func (a *Listener) handleXFR(ctx context.Context, q dns.Question, out chan *dns.
 	}
 }
 
-func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) {
+func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) error {
 	log.Ctx(ctx).Info().Msg("handle query")
 	for _, q := range r.Question {
 		if isXRFQuestion(q) {
@@ -274,8 +251,10 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 			Type: q.Qtype,
 		})
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("unable to get rules from upstream")
-			continue
+			return dnserr.NewDNSError(
+				dns.RcodeServerFailure,
+				fmt.Errorf("unable to get rules from upstream for %q: %w", q.Name, err),
+			)
 		}
 
 		for _, rule := range rules {
@@ -288,15 +267,18 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 			m.Answer = append(m.Answer, rr)
 		}
 	}
+	return nil
 }
 
-func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) {
+func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) error {
 	log.Ctx(ctx).Info().Msg("handle updates")
 
 	tx, err := a.upsc.Tx(ctx)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("create tx")
-		return
+		return dnserr.NewDNSError(
+			dns.RcodeServerFailure,
+			fmt.Errorf("create upstream tx: %w", err),
+		)
 	}
 
 	shouldAutoDelete := a.clients.ShouldAutoDelete(m.IsTsig().Hdr.Name)
@@ -347,13 +329,18 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) {
 
 	for _, rr := range r.Ns {
 		if err := handleUpdate(rr); err != nil {
-			log.Error().Err(err).Any("rr", rr).Msg("update failed")
+			return dnserr.NewDNSError(dns.RcodeRefused, err)
 		}
 	}
 
 	if err := tx.Commit(context.Background()); err != nil {
-		log.Error().Err(err).Msg("commit failed")
+		return dnserr.NewDNSError(
+			dns.RcodeServerFailure,
+			fmt.Errorf("upstream tx commit: %w", err),
+		)
 	}
+
+	return nil
 }
 
 func dnsMsgAcceptFunc(dh dns.Header) dns.MsgAcceptAction {

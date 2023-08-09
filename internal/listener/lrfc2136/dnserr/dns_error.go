@@ -11,6 +11,12 @@ type DNSError struct {
 	Nested error
 }
 
+func NewDNSError(rcode int, nested error) *DNSError {
+	return &DNSError{
+		RCode:  rcode,
+		Nested: nested,
+	}
+}
 func (e DNSError) Error() string {
 	if e.Nested == nil {
 		return ""

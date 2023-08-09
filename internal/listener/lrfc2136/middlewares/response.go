@@ -11,9 +11,11 @@ import (
 	"github.com/buglloc/DNSGateway/internal/listener/lrfc2136/dnserr"
 )
 
-type HandleFn func(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error
+type RawHandleFn func(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error
 
-func NopResponser(fn HandleFn) NextFn {
+type MsgHandleFn func(ctx context.Context, m *dns.Msg, r *dns.Msg) error
+
+func RawResponder(fn RawHandleFn) NextFn {
 	return func(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) {
 		err := fn(ctx, w, r)
 		if err != nil {
@@ -22,26 +24,38 @@ func NopResponser(fn HandleFn) NextFn {
 	}
 }
 
-func Responser(fn HandleFn) NextFn {
+func MsgResponder(fn MsgHandleFn) NextFn {
 	return func(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) {
-		err := fn(ctx, w, r)
+		m := new(dns.Msg)
+		if tsig := r.IsTsig(); tsig != nil {
+			m.SetTsig(tsig.Hdr.Name, dns.HmacSHA256, 300, time.Now().Unix())
+		}
+
+		err := fn(ctx, m, r)
 		if err == nil {
-			WriteResponse(ctx, w, r, dns.RcodeSuccess)
+			m.SetRcode(r, dns.RcodeSuccess)
+			if err := w.WriteMsg(m); err != nil {
+				log.Ctx(ctx).Error().Err(err).Msg("write failed")
+			}
 			return
 		}
 
 		log.Ctx(ctx).Error().Err(err).Msg("request failed")
 		var dnsErr *dnserr.DNSError
 		if errors.As(err, &dnsErr) {
-			WriteResponse(ctx, w, r, dnsErr.RCode)
+			WriteError(ctx, w, r, dnsErr.RCode)
 			return
 		}
 
-		WriteResponse(ctx, w, r, dns.RcodeServerFailure)
+		WriteError(ctx, w, r, dns.RcodeServerFailure)
 	}
 }
 
-func WriteResponse(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, rcode int) {
+func WriteError(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, rcode int) {
+	if rcode == 0 {
+		rcode = dns.RcodeServerFailure
+	}
+
 	m := new(dns.Msg)
 	m.SetRcode(r, rcode)
 
