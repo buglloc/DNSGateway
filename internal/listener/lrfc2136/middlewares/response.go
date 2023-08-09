@@ -28,11 +28,7 @@ func Responser(fn HandleFn) NextFn {
 		}
 
 		log.Ctx(ctx).Error().Err(err).Msg("request failed")
-		switch {
-		case err == nil:
-			WriteResponse(ctx, w, r, dns.RcodeSuccess)
-
-		}
+		WriteResponse(ctx, w, r, dns.RcodeServerFailure)
 	}
 }
 

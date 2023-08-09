@@ -15,7 +15,7 @@ func TSIGChecker(next NextFn) NextFn {
 		}
 
 		if err := w.TsigStatus(); err != nil {
-			WriteResponse(ctx, w, r, dns.RcodeBadKey)
+			WriteResponse(ctx, w, r, dns.RcodeRefused)
 			return
 		}
 
