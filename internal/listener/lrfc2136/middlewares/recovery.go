@@ -13,7 +13,7 @@ func Recoverer(next NextFn) NextFn {
 			if rvr := recover(); rvr != nil {
 				log.Ctx(ctx).Panic().Any("error", rvr).Msg("panic occurred")
 
-				WriteResponse(ctx, w, r, dns.RcodeServerFailure)
+				WriteError(ctx, w, r, dns.RcodeServerFailure)
 			}
 		}()
 
