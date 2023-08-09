@@ -2,6 +2,8 @@ package dnserr
 
 import (
 	"fmt"
+
+	"github.com/miekg/dns"
 )
 
 //go:generate  go run ./errsgen --pkg dnserr --out dns_error.errs.go
@@ -22,7 +24,13 @@ func (e DNSError) Error() string {
 	if e.Nested == nil {
 		return ""
 	}
-	return fmt.Sprintf("dns error[%d]: %v", e.RCode, e.Nested)
+
+	rCodeStr, ok := dns.RcodeToString[e.RCode]
+	if !ok {
+		rCodeStr = fmt.Sprint(e.RCode)
+	}
+
+	return fmt.Sprintf("dns error[%s]: %v", rCodeStr, e.Nested)
 }
 
 func (e *DNSError) Unwrap() error {
