@@ -17,6 +17,7 @@ func NewDNSError(rcode int, nested error) *DNSError {
 		Nested: nested,
 	}
 }
+
 func (e DNSError) Error() string {
 	if e.Nested == nil {
 		return ""
