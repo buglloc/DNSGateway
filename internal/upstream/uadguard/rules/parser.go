@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/miekg/dns"
+
+	"github.com/buglloc/DNSGateway/internal/fqdn"
+	"github.com/buglloc/DNSGateway/internal/upstream"
 )
 
 type Parser struct {
@@ -108,7 +111,7 @@ func (p *Parser) ParseRule(in []byte) (Rule, error) {
 	if nameBytes[0] == '|' {
 		nameBytes = append([]byte{'*', '.'}, nameBytes[1:]...)
 	}
-	name := fqdn(string(nameBytes))
+	name := fqdn.FQDN(string(nameBytes))
 
 	in = in[idx+1:]
 	idx = bytes.IndexByte(in, ';')
@@ -134,7 +137,14 @@ func (p *Parser) ParseRule(in []byte) (Rule, error) {
 		in = in[:idx]
 	}
 
-	return newRule(name, rrType, string(in))
+	uRule, err := upstream.NewRule(name, rrType, UnescapeString(strings.TrimSpace(string(in))))
+	if err != nil {
+		return Rule{}, err
+	}
+
+	return Rule{
+		Rule: &uRule,
+	}, nil
 }
 
 func strToRRType(s string) (rr uint16, err error) {
@@ -160,63 +170,4 @@ func indexComment(in []byte) int {
 	}
 
 	return -1
-}
-
-func unFqdn(s string) string {
-	return strings.TrimSuffix(s, ".")
-}
-
-func fqdn(s string) string {
-	if isFqdn(s) {
-		return s
-	}
-	return s + "."
-}
-
-func isFqdn(s string) bool {
-	return len(s) > 1 && s[len(s)-1] == '.'
-}
-
-func validateHostname(fqdn string) (err error) {
-	l := len(fqdn)
-	if l == 0 {
-		return fmt.Errorf("invalid hostname length: %d", l)
-	}
-
-	parts := strings.Split(fqdn, ".")
-	lastPart := len(parts) - 1
-	for i, p := range parts {
-		if len(p) == 0 {
-			if i == lastPart {
-				break
-			}
-
-			return fmt.Errorf("empty hostname part at index %d", i)
-		}
-
-		if r := p[0]; !isValidHostFirstRune(rune(r)) {
-			return fmt.Errorf("invalid hostname part at index %d: invalid char %q at index %d", i, r, 0)
-		}
-
-		for j, r := range p[1:] {
-			if !isValidHostRune(r) {
-				return fmt.Errorf("invalid hostname part at index %d: invalid char %q at index %d", i, r, j+1)
-			}
-		}
-	}
-
-	return nil
-}
-
-// isValidHostRune returns true if r is a valid rune for a hostname part.
-func isValidHostRune(r rune) (ok bool) {
-	return r == '-' || isValidHostFirstRune(r)
-}
-
-// isValidHostFirstRune returns true if r is a valid first rune for a hostname
-// part.
-func isValidHostFirstRune(r rune) (ok bool) {
-	return (r >= 'a' && r <= 'z') ||
-		(r >= 'A' && r <= 'Z') ||
-		(r >= '0' && r <= '9')
 }

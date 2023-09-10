@@ -18,3 +18,6 @@ upstream:
     login: buglloc
     password: kek-cheburek
     auto_ptr: true
+  cloudflare:
+    zone_id: c74b3a3b1002eba34d6cb7f8a62b69da
+    token: 3f786850e387550fdab836ed7e6dc881de23001b

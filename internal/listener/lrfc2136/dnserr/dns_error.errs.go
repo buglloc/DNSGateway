@@ -3,6 +3,7 @@ package dnserr
 
 import (
 	"errors"
+
 	"github.com/miekg/dns"
 )
 

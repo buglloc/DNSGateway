@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sync"
-	"time"
 
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
@@ -117,22 +115,22 @@ func (a *Listener) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
-	var responser middlewares.NextFn
+	var handler middlewares.NextFn
 
 	switch r.Opcode {
 	case dns.OpcodeQuery:
 		if isXRFRequest(r) {
-			responser = middlewares.RawResponder(a.handleXFRTransfer)
+			handler = middlewares.RawResponder(a.handleXFRTransfer)
 			break
 		}
 
-		responser = middlewares.MsgResponder(a.handleQuery)
+		handler = middlewares.MsgResponder(a.handleQuery)
 
 	case dns.OpcodeUpdate:
-		responser = middlewares.MsgResponder(a.handleUpdates)
+		handler = middlewares.MsgResponder(a.handleUpdates)
 
 	default:
-		responser = middlewares.MsgResponder(func(_ context.Context, _ *dns.Msg, _ *dns.Msg) error {
+		handler = middlewares.MsgResponder(func(_ context.Context, _ *dns.Msg, _ *dns.Msg) error {
 			return fmt.Errorf("unsupported opcode: %s", dns.OpcodeToString[r.Opcode])
 		})
 	}
@@ -140,7 +138,7 @@ func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 	middlewares.Logger(
 		middlewares.Recoverer(
 			middlewares.TSIGChecker(
-				responser,
+				handler,
 			),
 		),
 	)(ctx, w, r)
@@ -174,7 +172,7 @@ func (a *Listener) handleXFRTransfer(ctx context.Context, w dns.ResponseWriter, 
 		}
 	}()
 
-	a.handleXFRQuestion(ctx, r.Question[0], ch)
+	a.handleXFRQuestion(ctx, client, r.Question[0], ch)
 	close(ch)
 
 	<-done
@@ -182,7 +180,7 @@ func (a *Listener) handleXFRTransfer(ctx context.Context, w dns.ResponseWriter, 
 	return nil
 }
 
-func (a *Listener) handleXFRQuestion(ctx context.Context, q dns.Question, out chan *dns.Envelope) {
+func (a *Listener) handleXFRQuestion(ctx context.Context, client *Client, q dns.Question, out chan *dns.Envelope) {
 	log.Ctx(ctx).Info().Str("name", q.Name).Msg("handle XFR request")
 
 	rules, err := a.upsc.Query(ctx, upstream.Rule{
@@ -197,23 +195,17 @@ func (a *Listener) handleXFRQuestion(ctx context.Context, q dns.Question, out ch
 		return
 	}
 
-	const xfrTTL = 60
+	soa, err := client.SOA(q.Name)
+	if err != nil {
+		log.Ctx(ctx).Error().Str("name", q.Name).Err(err).Msg("unable to get SOA")
+		out <- &dns.Envelope{
+			Error: err,
+		}
+		return
+	}
+
 	xfrMarker := &dns.Envelope{
-		RR: []dns.RR{
-			&dns.SOA{
-				Hdr: dns.RR_Header{
-					Name:   q.Name,
-					Rrtype: dns.TypeSOA,
-					Class:  dns.ClassINET,
-				},
-				Ns:      q.Name,
-				Mbox:    q.Name,
-				Serial:  uint32(time.Now().Unix() % math.MaxUint32),
-				Refresh: xfrTTL,
-				Retry:   xfrTTL,
-				Expire:  xfrTTL,
-			},
-		},
+		RR: []dns.RR{soa},
 	}
 
 	out <- xfrMarker
@@ -252,14 +244,27 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) erro
 	}
 
 	for _, q := range r.Question {
-		if isXRFQuestion(q) {
-			log.Ctx(ctx).Warn().Msg("unexpected XFR request ignored")
-			continue
-		}
-
 		name := dns.Fqdn(q.Name)
-		if !client.IsNameAllowed(q.Name) {
-			return fmt.Errorf("%q is not allowed for client %q", name, client.Name)
+
+		switch {
+		case isXRFQuestion(q):
+			log.Ctx(ctx).Warn().Msg("ignored unexpected XFR request")
+			continue
+		case isSOAQuestion(q):
+			soa, err := client.SOA(q.Name)
+			if err != nil {
+				return err
+			}
+
+			if soa.Hdr.Name != q.Name {
+				return dnserr.NewDNSError(
+					dns.RcodeServerFailure,
+					fmt.Errorf("%q is not a zone", q.Name),
+				)
+			}
+
+			m.Answer = append(m.Answer, soa)
+			continue
 		}
 
 		rules, err := a.upsc.Query(ctx, upstream.Rule{
@@ -270,6 +275,13 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) erro
 			return dnserr.NewDNSError(
 				dns.RcodeServerFailure,
 				fmt.Errorf("unable to get rules from upstream for %q: %w", q.Name, err),
+			)
+		}
+
+		if len(rules) == 0 {
+			return dnserr.NewDNSError(
+				dns.RcodeNameError,
+				fmt.Errorf("no reqords for %q was found", q.Name),
 			)
 		}
 
@@ -286,7 +298,7 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) erro
 	return nil
 }
 
-func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) error {
+func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) error {
 	log.Ctx(ctx).Info().Msg("handle updates")
 	client, err := a.clients.Client(r)
 	if err != nil {
@@ -304,7 +316,10 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) er
 	handleUpdate := func(rr dns.RR) error {
 		header := rr.Header()
 		name := dns.Fqdn(header.Name)
-		l := log.Ctx(ctx).With().Str("name", name).Logger()
+		l := log.Ctx(ctx).With().
+			Str("type", upstream.TypeString(header.Rrtype)).
+			Str("name", name).
+			Logger()
 
 		if _, ok := dns.IsDomainName(name); !ok {
 			return errors.New("invalid domain name")
@@ -317,14 +332,16 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) er
 			)
 		}
 
-		if !client.IsTypeAllowed(header.Rrtype) {
+		if header.Rrtype != dns.TypeNone && !client.IsTypeAllowed(header.Rrtype) {
 			return fmt.Errorf(
 				"%q record type is not allowed for client %q",
 				dns.TypeToString[header.Rrtype], client.Name,
 			)
 		}
 
-		if header.Class == dns.ClassANY && header.Rdlength == 0 {
+		switch {
+		case header.Class == dns.ClassANY && header.Rdlength == 0:
+			// "2.5.2 - Delete An RRset" or "Delete All RRsets From A Name"
 			err := tx.Delete(upstream.Rule{
 				Name: name,
 				Type: header.Rrtype,
@@ -332,7 +349,19 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) er
 			if err != nil {
 				return fmt.Errorf("delete: %w", err)
 			}
-			l.Info().Str("name", name).Msg("deleted")
+			l.Info().Msg("deleted as RRset")
+			return nil
+		case header.Class == dns.ClassNONE:
+			// "2.5.4 - Delete An RR From An RRset"
+			rule, err := upstream.RuleFromRR(rr)
+			if err != nil {
+				return fmt.Errorf("parse RR: %w", err)
+			}
+
+			if err := tx.Delete(rule); err != nil {
+				return fmt.Errorf("delete: %w", err)
+			}
+			l.Info().Msg("deleted An RR from an RRset")
 			return nil
 		}
 
@@ -340,7 +369,6 @@ func (a *Listener) handleUpdates(ctx context.Context, m *dns.Msg, r *dns.Msg) er
 		if err != nil {
 			return fmt.Errorf("parse RR: %w", err)
 		}
-
 		if client.ShouldAutoDelete() {
 			_ = tx.Delete(upstream.Rule{
 				Name: rule.Name,
@@ -408,4 +436,8 @@ func isXRFRequest(r *dns.Msg) bool {
 
 func isXRFQuestion(q dns.Question) bool {
 	return q.Qtype == dns.TypeAXFR || q.Qtype == dns.TypeIXFR
+}
+
+func isSOAQuestion(q dns.Question) bool {
+	return q.Qtype == dns.TypeSOA
 }
