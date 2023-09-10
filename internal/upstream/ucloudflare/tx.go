@@ -98,7 +98,7 @@ func (t *Tx) processAdds(ctx context.Context, recs []cloudflare.DNSRecord) error
 		}
 
 		t.log.Info().
-			Str("name", rsp.ID).
+			Str("id", rsp.ID).
 			Str("name", rr.Name).
 			Str("content", rr.Content).
 			Msg("record added")

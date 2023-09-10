@@ -7,6 +7,7 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/miekg/dns"
 
+	"github.com/buglloc/DNSGateway/internal/fqdn"
 	"github.com/buglloc/DNSGateway/internal/upstream"
 )
 
@@ -23,7 +24,7 @@ func RuleFromCF(r cloudflare.DNSRecord) (Rule, error) {
 		return Rule{}, fmt.Errorf("unexpected record type: %s", r.Type)
 	}
 
-	uRule, err := upstream.NewRule(r.Name, rType, strings.TrimSpace(r.Content))
+	uRule, err := upstream.NewRule(fqdn.FQDN(r.Name), rType, strings.TrimSpace(r.Content))
 	if err != nil {
 		return Rule{}, err
 	}

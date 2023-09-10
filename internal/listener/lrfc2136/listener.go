@@ -316,7 +316,10 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 	handleUpdate := func(rr dns.RR) error {
 		header := rr.Header()
 		name := dns.Fqdn(header.Name)
-		l := log.Ctx(ctx).With().Str("name", name).Logger()
+		l := log.Ctx(ctx).With().
+			Str("type", upstream.TypeString(header.Rrtype)).
+			Str("name", name).
+			Logger()
 
 		if _, ok := dns.IsDomainName(name); !ok {
 			return errors.New("invalid domain name")
@@ -346,10 +349,7 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 			if err != nil {
 				return fmt.Errorf("delete: %w", err)
 			}
-			l.Info().
-				Str("type", upstream.TypeString(header.Rrtype)).
-				Str("name", name).
-				Msg("deleted")
+			l.Info().Msg("deleted as RRset")
 			return nil
 		case header.Class == dns.ClassNONE:
 			// "2.5.4 - Delete An RR From An RRset"
@@ -361,10 +361,7 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 			if err := tx.Delete(rule); err != nil {
 				return fmt.Errorf("delete: %w", err)
 			}
-			l.Info().
-				Str("type", upstream.TypeString(header.Rrtype)).
-				Str("name", name).
-				Msg("deleted")
+			l.Info().Msg("deleted An RR from an RRset")
 			return nil
 		}
 
