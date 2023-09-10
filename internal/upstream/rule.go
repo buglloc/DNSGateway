@@ -151,7 +151,7 @@ func (r *Rule) matchAxfrRule(other *Rule) bool {
 }
 
 func (r *Rule) matchPlainRule(other *Rule) bool {
-	if other.Type != 0 && other.Type != r.Type {
+	if other.Type != dns.TypeNone && other.Type != r.Type {
 		return false
 	}
 

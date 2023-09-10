@@ -27,13 +27,15 @@ func RawResponder(fn RawHandleFn) NextFn {
 func MsgResponder(fn MsgHandleFn) NextFn {
 	return func(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) {
 		m := new(dns.Msg)
+		m.SetRcode(r, dns.RcodeSuccess)
+		m.Authoritative = true
+
 		if tsig := r.IsTsig(); tsig != nil {
 			m.SetTsig(tsig.Hdr.Name, dns.HmacSHA256, 300, time.Now().Unix())
 		}
 
 		err := fn(ctx, m, r)
 		if err == nil {
-			m.SetRcode(r, dns.RcodeSuccess)
 			if err := w.WriteMsg(m); err != nil {
 				log.Ctx(ctx).Error().Err(err).Msg("write failed")
 			}
@@ -58,7 +60,6 @@ func WriteError(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, rcode int
 
 	m := new(dns.Msg)
 	m.SetRcode(r, rcode)
-
 	if tsig := r.IsTsig(); tsig != nil {
 		m.SetTsig(tsig.Hdr.Name, dns.HmacSHA256, 300, time.Now().Unix())
 	}

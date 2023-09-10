@@ -3,9 +3,14 @@ package lrfc2136
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
+
+	"github.com/buglloc/DNSGateway/internal/fqdn"
+	"github.com/buglloc/DNSGateway/internal/listener/lrfc2136/dnserr"
 )
 
 type Client struct {
@@ -45,15 +50,19 @@ func (c *Client) ShouldAutoDelete() bool {
 	return c.AutoDelete
 }
 
-func (c *Client) IsNameAllowed(name string) bool {
+func (c *Client) Zone(name string) string {
 	name = "." + name
 	for _, zone := range c.Zones {
 		if strings.HasSuffix(name, zone) {
-			return true
+			return zone
 		}
 	}
 
-	return false
+	return ""
+}
+
+func (c *Client) IsNameAllowed(name string) bool {
+	return c.Zone(name) != ""
 }
 
 func (c *Client) IsTypeAllowed(rrType uint16) bool {
@@ -64,6 +73,32 @@ func (c *Client) IsTypeAllowed(rrType uint16) bool {
 
 	_, ok := rrTypes[rrType]
 	return ok
+}
+
+func (c *Client) SOA(name string) (*dns.SOA, error) {
+	zone := c.Zone(name)
+	if zone == "" {
+		return nil, dnserr.NewDNSError(
+			dns.RcodeNameError,
+			fmt.Errorf("no zone for %q name was found", name),
+		)
+	}
+
+	const ttl = 60
+	return &dns.SOA{
+		Hdr: dns.RR_Header{
+			Name:   fqdn.FQDN(zone),
+			Rrtype: dns.TypeSOA,
+			Class:  dns.ClassINET,
+			Ttl:    ttl,
+		},
+		Ns:      "dns.cloudflare.com.",
+		Mbox:    fqdn.FQDN("admin." + zone),
+		Serial:  uint32(time.Now().Unix() % math.MaxUint32),
+		Refresh: ttl,
+		Retry:   ttl,
+		Expire:  ttl,
+	}, nil
 }
 
 func TsigSecrets(clients ...Client) (map[string]string, error) {
