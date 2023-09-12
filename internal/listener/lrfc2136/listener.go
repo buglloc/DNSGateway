@@ -153,12 +153,12 @@ func (a *Listener) handleXFRTransfer(ctx context.Context, w dns.ResponseWriter, 
 		return err
 	}
 
-	if client.IsXFRAllowed() {
-		return fmt.Errorf("XFR is not allowed for client %q", r.IsTsig().Hdr.Name)
-	}
-
 	if !isXRFRequest(r) {
 		return errors.New("invalid XFR request")
+	}
+
+	if !client.IsXFRAllowed() {
+		return fmt.Errorf("XFR is not allowed for client %q", r.IsTsig().Hdr.Name)
 	}
 
 	ch := make(chan *dns.Envelope)
