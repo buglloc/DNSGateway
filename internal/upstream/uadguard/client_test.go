@@ -33,9 +33,13 @@ func TestSrvMock(t *testing.T) {
 	}
 
 	adghMux.HandleFunc("/control/filtering/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "GET expected", http.StatusBadRequest)
+			return
+		}
+
 		rulesMu.Lock()
 		defer rulesMu.Unlock()
-
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(struct {
 			Rules    []string `json:"user_rules"`
@@ -48,9 +52,11 @@ func TestSrvMock(t *testing.T) {
 		})
 	})
 
-	adghMux.HandleFunc("/control/filtering/status", func(w http.ResponseWriter, r *http.Request) {
-		rulesMu.Lock()
-		defer rulesMu.Unlock()
+	adghMux.HandleFunc("/control/filtering/set_rules", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST expected", http.StatusBadRequest)
+			return
+		}
 
 		var req struct {
 			Rules []string `json:"rules"`
@@ -61,8 +67,11 @@ func TestSrvMock(t *testing.T) {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		rulesMu.Lock()
 		rules = req.Rules
+		rulesMu.Unlock()
+
+		w.WriteHeader(http.StatusOK)
 	})
 
 	srv := httptest.NewServer(&adghMux)
