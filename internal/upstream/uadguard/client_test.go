@@ -2,12 +2,13 @@ package uadguard_test
 
 import (
 	"context"
+	"encoding/json"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 
-	"github.com/labstack/echo/v4"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 
@@ -16,7 +17,7 @@ import (
 )
 
 func TestSrvMock(t *testing.T) {
-	adghApp := echo.New()
+	var adghMux http.ServeMux
 	var rulesMu sync.Mutex
 	rules := []string{
 		"lol",
@@ -31,11 +32,12 @@ func TestSrvMock(t *testing.T) {
 		"lol",
 	}
 
-	adghApp.GET("/control/filtering/status", func(c echo.Context) error {
+	adghMux.HandleFunc("/control/filtering/status", func(w http.ResponseWriter, r *http.Request) {
 		rulesMu.Lock()
 		defer rulesMu.Unlock()
 
-		return c.JSON(200, struct {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(struct {
 			Rules    []string `json:"user_rules"`
 			Internal int      `json:"interval"`
 			Enabled  bool     `json:"enabled"`
@@ -45,22 +47,25 @@ func TestSrvMock(t *testing.T) {
 			Enabled:  true,
 		})
 	})
-	adghApp.POST("/control/filtering/set_rules", func(c echo.Context) error {
+
+	adghMux.HandleFunc("/control/filtering/status", func(w http.ResponseWriter, r *http.Request) {
 		rulesMu.Lock()
 		defer rulesMu.Unlock()
 
 		var req struct {
 			Rules []string `json:"rules"`
 		}
-		if err := c.Bind(&req); err != nil {
-			return c.String(500, err.Error())
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
+		w.WriteHeader(http.StatusOK)
 		rules = req.Rules
-		return c.String(200, "")
 	})
 
-	srv := httptest.NewServer(adghApp)
+	srv := httptest.NewServer(&adghMux)
 	defer srv.Close()
 
 	c, err := uadguard.NewUpstream(
