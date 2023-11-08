@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/buglloc/certifi v0.9.1
-	github.com/cloudflare/cloudflare-go v0.80.0
+	github.com/cloudflare/cloudflare-go v0.81.0
 	github.com/go-resty/resty/v2 v2.10.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0
 	github.com/knadh/koanf/providers/env v0.1.0
@@ -39,7 +39,7 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/time v0.4.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
