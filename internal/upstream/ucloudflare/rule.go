@@ -33,7 +33,7 @@ func RuleFromCF(r cloudflare.DNSRecord) (Rule, error) {
 		content = fmt.Sprintf("%.f %s", dp["priority"], r.Content)
 		// Cloudflare's API, annoyingly, automatically prepends the weight
 		// and port into content, separated by tabs.
-		content = strings.Replace(r.Content, "\t", " ", -1)
+		content = strings.Replace(content, "\t", " ", -1)
 	}
 
 	uRule, err := upstream.NewRule(fqdn.FQDN(r.Name), rType, strings.TrimSpace(content))
