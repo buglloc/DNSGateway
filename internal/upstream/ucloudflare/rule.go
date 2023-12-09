@@ -24,7 +24,19 @@ func RuleFromCF(r cloudflare.DNSRecord) (Rule, error) {
 		return Rule{}, fmt.Errorf("unexpected record type: %s", r.Type)
 	}
 
-	uRule, err := upstream.NewRule(fqdn.FQDN(r.Name), rType, strings.TrimSpace(r.Content))
+	content := r.Content
+	switch r.Type {
+	case "MX":
+		content = fmt.Sprintf("%d %s", *r.Priority, r.Content)
+	case "SRV":
+		dp := r.Data.(map[string]interface{})
+		content = fmt.Sprintf("%.f %s", dp["priority"], r.Content)
+		// Cloudflare's API, annoyingly, automatically prepends the weight
+		// and port into content, separated by tabs.
+		content = strings.Replace(r.Content, "\t", " ", -1)
+	}
+
+	uRule, err := upstream.NewRule(fqdn.FQDN(r.Name), rType, strings.TrimSpace(content))
 	if err != nil {
 		return Rule{}, err
 	}
