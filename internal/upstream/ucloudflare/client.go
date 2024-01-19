@@ -26,7 +26,7 @@ func NewUpstream(token string, opts ...Option) (*Upstream, error) {
 	httpc := xhttp.NewHTTPClient()
 	cfc, err := cloudflare.NewWithAPIToken(token, cloudflare.HTTPClient(httpc))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create cloudflare client: %w", err)
+		return nil, fmt.Errorf("create cloudflare client: %w", err)
 	}
 
 	return NewUpstreamWithCFC(cfc, opts...)

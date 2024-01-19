@@ -53,7 +53,7 @@ func (t *Tx) Append(r upstream.Rule) error {
 
 	arpa, err := dns.ReverseAddr(r.ValueStr)
 	if err != nil {
-		return fmt.Errorf("unable to generate arpa address: %w", err)
+		return fmt.Errorf("generate arpa address: %w", err)
 	}
 
 	_ = t.rules.Delete(upstream.Rule{

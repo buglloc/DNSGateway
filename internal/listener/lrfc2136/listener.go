@@ -259,7 +259,7 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) erro
 			if soa.Hdr.Name != q.Name {
 				return dnserr.NewDNSError(
 					dns.RcodeServerFailure,
-					fmt.Errorf("%q is not a zone", q.Name),
+					fmt.Errorf("%q (question) is not a zone %q (header)", q.Name, soa.Hdr.Name),
 				)
 			}
 
@@ -281,7 +281,7 @@ func (a *Listener) handleQuery(ctx context.Context, m *dns.Msg, r *dns.Msg) erro
 		if len(rules) == 0 {
 			return dnserr.NewDNSError(
 				dns.RcodeNameError,
-				fmt.Errorf("no reqords for %q was found", q.Name),
+				fmt.Errorf("no records for %q was found", q.Name),
 			)
 		}
 
