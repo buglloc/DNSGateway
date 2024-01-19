@@ -78,7 +78,7 @@ func (l *RFC2136Listener) Validate() error {
 func (r *Runtime) NewListener() (listener.Listener, error) {
 	u, err := r.NewUpstream()
 	if err != nil {
-		return nil, fmt.Errorf("unable to create upstream for listener: %w", err)
+		return nil, fmt.Errorf("create upstream for listener: %w", err)
 	}
 
 	switch r.cfg.Listener.Kind {
