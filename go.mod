@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/buglloc/certifi v0.9.2
-	github.com/cloudflare/cloudflare-go v0.94.0
+	github.com/cloudflare/cloudflare-go v0.95.0
 	github.com/go-resty/resty/v2 v2.13.1
 	github.com/knadh/koanf/parsers/yaml v0.1.0
 	github.com/knadh/koanf/providers/env v0.1.0
