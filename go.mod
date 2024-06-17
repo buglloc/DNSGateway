@@ -12,7 +12,7 @@ require (
 	github.com/knadh/koanf/v2 v2.1.1
 	github.com/miekg/dns v1.1.59
 	github.com/rs/zerolog v1.33.0
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/sync v0.7.0
