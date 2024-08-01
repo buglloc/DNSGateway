@@ -1,5 +1,5 @@
-github.com/buglloc/certifi v0.9.2 h1:5GCf8WfzhwdbtfBIvjhG68jteTzcZlJCANNgAL9ntG8=
-github.com/buglloc/certifi v0.9.2/go.mod h1:gfBmljk3gl0dTYtpx18dLMjx8fXutictjX9RWyBcQT0=
+github.com/buglloc/certifi v0.9.3 h1:AeKLJ93im8LPm8cI90e9HZmMh7rUSET9h/StrbpSAHs=
+github.com/buglloc/certifi v0.9.3/go.mod h1:gfBmljk3gl0dTYtpx18dLMjx8fXutictjX9RWyBcQT0=
 github.com/cloudflare/cloudflare-go v0.100.0 h1:4iCUI2ZoIhRMyd7Z1TDsHhH1OhkgHC83eYbPlSgTRjo=
 github.com/cloudflare/cloudflare-go v0.100.0/go.mod h1:VQ1t9Mvgdu4VFLx6uwQgFC10XxcCRIUuvkYGc9daMRU=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
