@@ -1,7 +1,7 @@
 github.com/buglloc/certifi v0.9.3 h1:AeKLJ93im8LPm8cI90e9HZmMh7rUSET9h/StrbpSAHs=
 github.com/buglloc/certifi v0.9.3/go.mod h1:gfBmljk3gl0dTYtpx18dLMjx8fXutictjX9RWyBcQT0=
-github.com/cloudflare/cloudflare-go v0.102.0 h1:+0MGbkirM/yzVLOYpWMgW7CDdKzesSbdwA2Y+rABrWI=
-github.com/cloudflare/cloudflare-go v0.102.0/go.mod h1:BOB41tXf31ti/qtBO9paYhyapotQbGRDbQoLOAF7pSg=
+github.com/cloudflare/cloudflare-go v0.103.0 h1:XXKzgXeUbAo7UTtM4T5wuD2bJPBtNZv7TlZAEy5QI4k=
+github.com/cloudflare/cloudflare-go v0.103.0/go.mod h1:0DrjT4g8wgYFYIxhlqR8xi8dNWfyHFGilUkU3+XV8h0=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
