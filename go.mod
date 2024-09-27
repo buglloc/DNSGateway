@@ -7,7 +7,7 @@ require (
 	github.com/cloudflare/cloudflare-go v0.105.0
 	github.com/go-resty/resty/v2 v2.15.2
 	github.com/knadh/koanf/parsers/yaml v0.1.0
-	github.com/knadh/koanf/providers/env v0.1.0
+	github.com/knadh/koanf/providers/env v1.0.0
 	github.com/knadh/koanf/providers/file v1.1.0
 	github.com/knadh/koanf/v2 v2.1.1
 	github.com/miekg/dns v1.1.62
@@ -26,7 +26,6 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/knadh/koanf/maps v0.1.1 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
