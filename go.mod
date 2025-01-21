@@ -7,7 +7,7 @@ toolchain go1.23.4
 require (
 	github.com/buglloc/certifi v0.9.3
 	github.com/cloudflare/cloudflare-go v0.114.0
-	github.com/go-resty/resty/v2 v2.16.3
+	github.com/go-resty/resty/v2 v2.16.4
 	github.com/knadh/koanf/parsers/yaml v0.1.0
 	github.com/knadh/koanf/providers/env v1.0.0
 	github.com/knadh/koanf/providers/file v1.1.2
