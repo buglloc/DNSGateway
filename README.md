@@ -11,5 +11,5 @@ That's how DNSGateway appeared. Basic features:
   - that's all :)
 
 Related posts:
-  - [DNSGateway + Cloudflare to issue Let’s Encrypt certificates with DNS-01 challenges](https://ut.buglloc.com/home-infra/dnsgateway-acme/)
-  - [ExternalDNS + AdGuard Home + CoreDNS => ExternalDNS + DNSGateway + AdGuard Home](https://ut.buglloc.com/home-infra/bye-coredns/)
+  - [DNSGateway + Cloudflare to issue Let’s Encrypt certificates with DNS-01 challenges](https://ut.buglloc.com/2023/09/dnsgateway-acme/)
+  - [ExternalDNS + AdGuard Home + CoreDNS => ExternalDNS + DNSGateway + AdGuard Home](https://ut.buglloc.com/2023/09/bye-coredns/)
