@@ -1,7 +1,6 @@
 module github.com/buglloc/DNSGateway
 
 go 1.23
-
 toolchain go1.23.4
 
 require (
@@ -17,7 +16,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/sync v0.11.0
+	golang.org/x/sync v0.12.0
 )
 
 require (
