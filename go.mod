@@ -3,7 +3,7 @@ module github.com/buglloc/DNSGateway
 go 1.23.0
 
 require (
-	github.com/buglloc/certifi v0.9.3
+	github.com/buglloc/certifi v0.9.4
 	github.com/cloudflare/cloudflare-go v0.115.0
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/knadh/koanf/parsers/yaml v0.1.0
