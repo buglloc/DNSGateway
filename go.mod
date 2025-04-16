@@ -6,7 +6,7 @@ require (
 	github.com/buglloc/certifi v0.9.4
 	github.com/cloudflare/cloudflare-go v0.115.0
 	github.com/go-resty/resty/v2 v2.16.5
-	github.com/knadh/koanf/parsers/yaml v0.1.0
+	github.com/knadh/koanf/parsers/yaml v1.0.0
 	github.com/knadh/koanf/providers/env v1.0.0
 	github.com/knadh/koanf/providers/file v1.1.2
 	github.com/knadh/koanf/v2 v2.1.2
