@@ -8,7 +8,7 @@ require (
 	github.com/go-resty/resty/v2 v2.17.0
 	github.com/knadh/koanf/parsers/yaml v1.1.0
 	github.com/knadh/koanf/providers/env v1.1.0
-	github.com/knadh/koanf/providers/file v1.2.0
+	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/v2 v2.3.0
 	github.com/miekg/dns v1.1.68
 	github.com/rs/zerolog v1.34.0
