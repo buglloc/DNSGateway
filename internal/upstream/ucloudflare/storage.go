@@ -1,6 +1,7 @@
 package ucloudflare
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cloudflare/cloudflare-go"
@@ -19,6 +20,10 @@ func NewCFStorage(records []cloudflare.DNSRecord) (*Storage, error) {
 	for _, r := range records {
 		rule, err := RuleFromCF(r)
 		if err != nil {
+			if errors.Is(err, errUnsupportedRecordType) {
+				continue
+			}
+
 			return nil, fmt.Errorf("invalid rule: %w", err)
 		}
 
