@@ -204,6 +204,17 @@ func TestParseRule(t *testing.T) {
 			},
 		},
 		{
+			in: `|txt.example.com^$dnsrewrite=NOERROR;TXT;foo#bar!baz`,
+			out: Rule{
+				Rule: &upstream.Rule{
+					Name:     "txt.example.com.",
+					Type:     dns.TypeTXT,
+					Value:    "foo#bar!baz",
+					ValueStr: "foo#bar!baz",
+				},
+			},
+		},
+		{
 			in: `|example.com^$dnsrewrite=NOERROR;MX;10 mail1.example.com`,
 			out: Rule{
 				Rule: &upstream.Rule{
@@ -270,6 +281,14 @@ func TestParseRule(t *testing.T) {
 			require.Equal(t, ruleStr, actual.Format())
 		})
 	}
+}
+
+func TestParseRuleCommentCharsInValue(t *testing.T) {
+	p := NewParser("b", "e")
+	actual, err := p.ParseRule([]byte(`|txt.example.com^$dnsrewrite=NOERROR;TXT;foo#bar!baz # not a comment`))
+	require.NoError(t, err)
+	require.Equal(t, "foo#bar!baz # not a comment", actual.ValueStr)
+	require.Equal(t, `|txt.example.com^$dnsrewrite=NOERROR;TXT;foo#bar!baz # not a comment`, actual.Format())
 }
 
 func TestFormat(t *testing.T) {
@@ -351,6 +370,17 @@ func TestFormat(t *testing.T) {
 					Type:     dns.TypeTXT,
 					Value:    "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
 					ValueStr: "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
+				},
+			},
+		},
+		{
+			out: `|txt.example.com^$dnsrewrite=NOERROR;TXT;foo#bar!baz.`,
+			in: Rule{
+				Rule: &upstream.Rule{
+					Name:     "txt.example.com.",
+					Type:     dns.TypeTXT,
+					Value:    "foo#bar!baz.",
+					ValueStr: "foo#bar!baz.",
 				},
 			},
 		},

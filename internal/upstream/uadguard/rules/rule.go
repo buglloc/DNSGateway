@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/miekg/dns"
+
 	"github.com/buglloc/DNSGateway/internal/fqdn"
 	"github.com/buglloc/DNSGateway/internal/upstream"
 )
@@ -25,6 +27,21 @@ func (r *Rule) Format() string {
 	if value == "" {
 		value = fmt.Sprint(r.Value)
 	}
+	switch r.Type {
+	case dns.TypeCNAME, dns.TypePTR:
+		value = fqdn.UnFQDN(value)
+	case dns.TypeMX:
+		parts := strings.SplitN(value, " ", 2)
+		if len(parts) == 2 && parts[1] != "." {
+			value = parts[0] + " " + fqdn.UnFQDN(parts[1])
+		}
+	case dns.TypeSRV:
+		parts := strings.Split(value, " ")
+		if len(parts) >= 4 && parts[3] != "." {
+			parts[3] = fqdn.UnFQDN(parts[3])
+			value = strings.Join(parts, " ")
+		}
+	}
 
 	name := fqdn.UnFQDN(r.Name)
 	if strictName := strings.TrimPrefix(name, "*."); strictName != name {
@@ -33,6 +50,6 @@ func (r *Rule) Format() string {
 
 	return fmt.Sprintf(
 		"|%s^$dnsrewrite=NOERROR;%s;%s",
-		name, upstream.TypeString(r.Type), fqdn.UnFQDN(EscapeString(value)),
+		name, upstream.TypeString(r.Type), EscapeString(value),
 	)
 }
