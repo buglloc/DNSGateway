@@ -137,11 +137,15 @@ func (r *Rule) Same(other *Rule) bool {
 }
 
 func (r *Rule) matchAxfrRule(other *Rule) bool {
-	if strings.HasSuffix(r.Name, other.Name) {
+	if other.Name == "" {
 		return true
 	}
 
-	if strings.HasSuffix(r.ValueStr, other.Name) {
+	if dns.IsSubDomain(other.Name, r.Name) {
+		return true
+	}
+
+	if dns.IsSubDomain(other.Name, r.ValueStr) {
 		return true
 	}
 
