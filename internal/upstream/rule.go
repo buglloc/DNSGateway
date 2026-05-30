@@ -3,6 +3,7 @@ package upstream
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -49,7 +50,7 @@ func RuleFromRR(rr dns.RR) (Rule, error) {
 
 	case *dns.TXT:
 		value = v.Txt
-		valueStr = strings.Join(v.Txt, "")
+		valueStr = txtValueStr(v.Txt)
 
 	case *dns.SRV:
 		value = v
@@ -161,11 +162,35 @@ func (r *Rule) matchPlainRule(other *Rule) bool {
 		return false
 	}
 
-	if other.ValueStr != "" && other.ValueStr != r.ValueStr {
+	if !r.matchValue(other) {
 		return false
 	}
 
 	return true
+}
+
+func (r *Rule) matchValue(other *Rule) bool {
+	if r.Type == dns.TypeTXT {
+		return matchTXTValue(r, other)
+	}
+
+	return other.ValueStr == "" || other.ValueStr == r.ValueStr
+}
+
+func matchTXTValue(r *Rule, other *Rule) bool {
+	if other.Value != nil {
+		return reflect.DeepEqual(r.Value, other.Value)
+	}
+
+	return other.ValueStr == "" || other.ValueStr == r.ValueStr
+}
+
+func txtValueStr(parts []string) string {
+	if len(parts) == 1 {
+		return parts[0]
+	}
+
+	return strings.Join(parts, "")
 }
 
 func TypeString(typ RType) string {
