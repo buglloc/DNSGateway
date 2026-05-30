@@ -133,10 +133,6 @@ func (p *Parser) ParseRule(in []byte) (Rule, error) {
 	}
 	in = in[idx+1:]
 
-	if idx = indexComment(in); idx != -1 {
-		in = in[:idx]
-	}
-
 	uRule, err := upstream.NewRule(name, rrType, UnescapeString(strings.TrimSpace(string(in))))
 	if err != nil {
 		return Rule{}, err
@@ -159,15 +155,4 @@ func strToRRType(s string) (rr uint16, err error) {
 	}
 
 	return typ, nil
-}
-
-func indexComment(in []byte) int {
-	for i, b := range in {
-		switch b {
-		case '!', '#':
-			return i
-		}
-	}
-
-	return -1
 }
