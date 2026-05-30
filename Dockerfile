@@ -11,3 +11,5 @@ FROM debian:bookworm-slim
 COPY --from=build /go/bin/dns-gateway /usr/sbin/dns-gateway
 
 ENTRYPOINT ["/usr/sbin/dns-gateway"]
+
+CMD ["start"]
