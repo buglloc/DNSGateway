@@ -51,9 +51,9 @@ func (c *Client) ShouldAutoDelete() bool {
 }
 
 func (c *Client) Zone(name string) string {
-	name = "." + name
+	name = dns.Fqdn(name)
 	for _, zone := range c.Zones {
-		if strings.HasSuffix(name, zone) {
+		if dns.IsSubDomain(dns.Fqdn(zone), name) {
 			return zone
 		}
 	}
@@ -68,6 +68,9 @@ func (c *Client) IsNameAllowed(name string) bool {
 func (c *Client) IsTypeAllowed(rrType uint16) bool {
 	rrTypes := c.Types
 	if len(rrTypes) == 0 {
+		return true
+	}
+	if rrType == dns.TypeNone {
 		return true
 	}
 

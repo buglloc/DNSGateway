@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
@@ -23,6 +24,8 @@ type Listener struct {
 	mu        sync.Mutex
 	log       zerolog.Logger
 }
+
+const commitTimeout = time.Minute
 
 func NewListener(cfg *Config) (*Listener, error) {
 	if err := cfg.Validate(); err != nil {
@@ -103,9 +106,7 @@ func (a *Listener) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	ctx := l.WithContext(context.Background())
 
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if err := a.lockedServeDNS(ctx, w, r); err != nil {
+	if err := a.serveDNS(ctx, w, r); err != nil {
 		l.Error().Err(err).Msg("request failed")
 
 		m := new(dns.Msg)
@@ -114,7 +115,7 @@ func (a *Listener) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 }
 
-func (a *Listener) lockedServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
+func (a *Listener) serveDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
 	var handler middlewares.NextFn
 
 	switch r.Opcode {
@@ -305,6 +306,19 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 		return err
 	}
 
+	if len(r.Answer) > 0 {
+		return dnserr.NewDNSError(
+			dns.RcodeRefused,
+			fmt.Errorf("RFC2136 prerequisites are not supported"),
+		)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, commitTimeout)
+	defer cancel()
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	tx, err := a.upsc.Tx(ctx)
 	if err != nil {
 		return dnserr.NewDNSError(
@@ -324,7 +338,6 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 		if _, ok := dns.IsDomainName(name); !ok {
 			return errors.New("invalid domain name")
 		}
-
 		if !client.IsNameAllowed(name) {
 			return fmt.Errorf(
 				"%q is not allowed for client %q",
@@ -344,7 +357,7 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 			// "2.5.2 - Delete An RRset" or "Delete All RRsets From A Name"
 			err := tx.Delete(upstream.Rule{
 				Name: name,
-				Type: header.Rrtype,
+				Type: deleteRRType(header.Rrtype),
 			})
 			if err != nil {
 				return fmt.Errorf("delete: %w", err)
@@ -390,7 +403,7 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 		}
 	}
 
-	if err := tx.Commit(context.Background()); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return dnserr.NewDNSError(
 			dns.RcodeServerFailure,
 			fmt.Errorf("upstream tx commit: %w", err),
@@ -398,6 +411,14 @@ func (a *Listener) handleUpdates(ctx context.Context, _ *dns.Msg, r *dns.Msg) er
 	}
 
 	return nil
+}
+
+func deleteRRType(rrType uint16) uint16 {
+	if rrType == dns.TypeANY {
+		return dns.TypeNone
+	}
+
+	return rrType
 }
 
 func dnsMsgAcceptFunc(dh dns.Header) dns.MsgAcceptAction {
@@ -420,7 +441,10 @@ func dnsMsgAcceptFunc(dh dns.Header) dns.MsgAcceptAction {
 		return dns.MsgReject
 	}
 	// NOTIFY requests can have a SOA in the ANSWER section. See RFC 1996 Section 3.7 and 3.11.
-	if dh.Ancount > 1 {
+	if opcode == dns.OpcodeUpdate && dh.Ancount > 0 {
+		return dns.MsgReject
+	}
+	if opcode != dns.OpcodeUpdate && dh.Ancount > 1 {
 		return dns.MsgReject
 	}
 

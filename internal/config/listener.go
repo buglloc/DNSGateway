@@ -97,6 +97,9 @@ func (r *Runtime) newRFC2136Listener(u upstream.Upstream, cfg RFC2136Listener) (
 	lCfg := lrfc2136.NewConfig().
 		Addr(cfg.Addr).
 		Upstream(u)
+	if len(cfg.Nets) > 0 {
+		lCfg.Nets(cfg.Nets...)
+	}
 
 	for _, cl := range cfg.Clients {
 		rrTypes, err := lrfc2136.ParseTypesSet(cl.Types)
