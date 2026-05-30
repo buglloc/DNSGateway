@@ -31,10 +31,17 @@ func (t *Tx) Delete(r upstream.Rule) error {
 		return nil
 	}
 
-	_ = t.rules.Delete(upstream.Rule{
-		Name: r.ValueStr,
-		Type: dns.TypePTR,
-	})
+	for _, rule := range deleted {
+		arpa, err := dns.ReverseAddr(rule.ValueStr)
+		if err != nil {
+			return fmt.Errorf("generate arpa address: %w", err)
+		}
+
+		_ = t.rules.Delete(upstream.Rule{
+			Name: arpa,
+			Type: dns.TypePTR,
+		})
+	}
 
 	return nil
 }

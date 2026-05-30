@@ -198,7 +198,7 @@ func TestParseRule(t *testing.T) {
 				Rule: &upstream.Rule{
 					Name:     "k3s-lab-a-yawg.pve.buglloc.cc.",
 					Type:     dns.TypeTXT,
-					Value:    "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
+					Value:    []string{"heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg"},
 					ValueStr: "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
 				},
 			},
@@ -209,7 +209,7 @@ func TestParseRule(t *testing.T) {
 				Rule: &upstream.Rule{
 					Name:     "txt.example.com.",
 					Type:     dns.TypeTXT,
-					Value:    "foo#bar!baz",
+					Value:    []string{"foo#bar!baz"},
 					ValueStr: "foo#bar!baz",
 				},
 			},
@@ -368,7 +368,7 @@ func TestFormat(t *testing.T) {
 				Rule: &upstream.Rule{
 					Name:     "k3s-lab-a-yawg.pve.buglloc.cc.",
 					Type:     dns.TypeTXT,
-					Value:    "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
+					Value:    []string{"heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg"},
 					ValueStr: "heritage=external-dns,external-dns/owner=thailab,external-dns/resource=service/external-services/pve-mahine-yawg",
 				},
 			},
@@ -379,7 +379,7 @@ func TestFormat(t *testing.T) {
 				Rule: &upstream.Rule{
 					Name:     "txt.example.com.",
 					Type:     dns.TypeTXT,
-					Value:    "foo#bar!baz.",
+					Value:    []string{"foo#bar!baz."},
 					ValueStr: "foo#bar!baz.",
 				},
 			},

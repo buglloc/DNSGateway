@@ -81,7 +81,7 @@ func (r *Runtime) NewUpstream() (upstream.Upstream, error) {
 	case UpstreamKindCloudflare:
 		return r.newCloudflareUpstream(r.cfg.Upstream.Cloudflare)
 	default:
-		return nil, fmt.Errorf("unsupported upstream kind: %s", r.cfg.Listener.Kind)
+		return nil, fmt.Errorf("unsupported upstream kind: %s", r.cfg.Upstream.Kind)
 	}
 }
 

@@ -140,7 +140,7 @@ func newRuleTXT(name string, valStr string) (Rule, error) {
 	return Rule{
 		Name:     name,
 		Type:     dns.TypeTXT,
-		Value:    valStr,
+		Value:    []string{valStr},
 		ValueStr: valStr,
 	}, nil
 }

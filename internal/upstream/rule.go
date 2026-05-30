@@ -49,13 +49,11 @@ func RuleFromRR(rr dns.RR) (Rule, error) {
 
 	case *dns.TXT:
 		value = v.Txt
-		if len(v.Txt) > 0 {
-			valueStr = v.Txt[0]
-		}
+		valueStr = strings.Join(v.Txt, "")
 
 	case *dns.SRV:
 		value = v
-		valueStr = fmt.Sprintf("%d %d %d %s", v.Priority, v.Weight, v.Priority, v.Target)
+		valueStr = fmt.Sprintf("%d %d %d %s", v.Priority, v.Weight, v.Port, v.Target)
 
 	default:
 		return Rule{}, fmt.Errorf("unsupported rr: %s", rr)
@@ -112,7 +110,7 @@ func (r *Rule) RR() (dns.RR, error) {
 	case dns.TypeTXT:
 		return &dns.TXT{
 			Hdr: hdr,
-			Txt: []string{r.Value.(string)},
+			Txt: r.Value.([]string),
 		}, nil
 
 	case dns.TypeSRV:

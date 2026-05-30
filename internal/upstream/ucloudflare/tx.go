@@ -35,12 +35,12 @@ func (t *Tx) Append(r upstream.Rule) error {
 }
 
 func (t *Tx) Commit(ctx context.Context) error {
-	if err := t.processAdds(ctx, t.store.ToAdd()); err != nil {
-		return fmt.Errorf("adds failed: %w", err)
-	}
-
 	if err := t.processDeletes(ctx, t.store.ToDelete()); err != nil {
 		return fmt.Errorf("deletes failed: %w", err)
+	}
+
+	if err := t.processAdds(ctx, t.store.ToAdd()); err != nil {
+		return fmt.Errorf("adds failed: %w", err)
 	}
 
 	return nil
@@ -53,7 +53,7 @@ func (t *Tx) processDeletes(ctx context.Context, recs []cloudflare.DNSRecord) er
 				Str("name", rr.Name).
 				Str("content", rr.Content).
 				Msg("unable to delete record w/o ID")
-			continue
+			return fmt.Errorf("delete record %q: missing ID", rr.Name)
 		}
 
 		if err := t.cfc.DeleteDNSRecord(ctx, cloudflare.ZoneIdentifier(t.zoneID), rr.ID); err != nil {
@@ -61,9 +61,10 @@ func (t *Tx) processDeletes(ctx context.Context, recs []cloudflare.DNSRecord) er
 				Str("id", rr.ID).
 				Str("name", rr.Name).
 				Str("content", rr.Content).
-				Msg("unable to delete record w/o ID")
+				Err(err).
+				Msg("unable to delete record in CF")
 
-			continue
+			return fmt.Errorf("delete record %q[%s]: %w", rr.Name, rr.ID, err)
 		}
 
 		t.log.Info().
@@ -82,6 +83,7 @@ func (t *Tx) processAdds(ctx context.Context, recs []cloudflare.DNSRecord) error
 			Name:     rr.Name,
 			Type:     strings.ToUpper(rr.Type),
 			Content:  rr.Content,
+			Data:     rr.Data,
 			TTL:      rr.TTL,
 			Proxied:  rr.Proxied,
 			Priority: rr.Priority,
@@ -94,7 +96,7 @@ func (t *Tx) processAdds(ctx context.Context, recs []cloudflare.DNSRecord) error
 				Str("content", rr.Content).
 				Err(err).
 				Msg("unable to update record in CF")
-			continue
+			return fmt.Errorf("create record %q: %w", rr.Name, err)
 		}
 
 		t.log.Info().
