@@ -20,10 +20,10 @@ jobs:
     steps:
       # Get the repositery's code
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Golang
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.26.x'
           check-latest: true
@@ -48,10 +48,10 @@ jobs:
     steps:
       # Get the repositery's code
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Golang
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.${{ matrix.go }}.x'
           cache: true
