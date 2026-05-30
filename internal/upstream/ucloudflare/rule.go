@@ -29,7 +29,7 @@ func RuleFromCF(r cloudflare.DNSRecord) (Rule, error) {
 	case "MX":
 		content = fmt.Sprintf("%d %s", *r.Priority, r.Content)
 	case "SRV":
-		dp := r.Data.(map[string]interface{})
+		dp := r.Data.(map[string]any)
 		content = fmt.Sprintf("%.f %s", dp["priority"], r.Content)
 		// Cloudflare's API, annoyingly, automatically prepends the weight
 		// and port into content, separated by tabs.

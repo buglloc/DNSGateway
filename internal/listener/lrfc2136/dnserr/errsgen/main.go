@@ -26,7 +26,7 @@ func errVar(rcode string) string {
 	return "Err" + strings.ReplaceAll(strings.TrimPrefix(rcode, "Rcode"), "Error", "")
 }
 
-func fatalf(msg string, a ...interface{}) {
+func fatalf(msg string, a ...any) {
 	_, _ = fmt.Fprintf(os.Stderr, "errsgen: "+msg+"\n", a...)
 	os.Exit(1)
 }
