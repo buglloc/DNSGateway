@@ -48,6 +48,9 @@ func RuleFromCF(r cloudflare.DNSRecord) (Rule, error) {
 	if err != nil {
 		return Rule{}, err
 	}
+	if r.TTL > 0 {
+		uRule.TTL = uint32(r.TTL)
+	}
 
 	return Rule{
 		cfRecord: r,
@@ -56,11 +59,16 @@ func RuleFromCF(r cloudflare.DNSRecord) (Rule, error) {
 }
 
 func RuleFromUpstream(r upstream.Rule) (Rule, error) {
+	ttl := defaultTTL
+	if r.TTL > 0 {
+		ttl = int(r.TTL)
+	}
+
 	record := cloudflare.DNSRecord{
 		Type:    upstream.TypeString(r.Type),
 		Name:    r.Name,
 		Content: r.ValueStr,
-		TTL:     defaultTTL,
+		TTL:     ttl,
 		Proxied: &noProxied,
 	}
 

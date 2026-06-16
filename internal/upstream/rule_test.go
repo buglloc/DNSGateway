@@ -14,16 +14,19 @@ func TestRuleFromRRTXTChunksRoundTrip(t *testing.T) {
 			Name:   "txt.example.com.",
 			Rrtype: dns.TypeTXT,
 			Class:  dns.ClassINET,
+			Ttl:    3600,
 		},
 		Txt: []string{"foo", "bar"},
 	}
 
 	rule, err := RuleFromRR(rr)
 	require.NoError(t, err)
+	require.Equal(t, uint32(3600), rule.TTL)
 	require.Equal(t, []string{"foo", "bar"}, rule.Value)
 
 	actual, err := rule.RR()
 	require.NoError(t, err)
+	require.Equal(t, uint32(3600), actual.Header().Ttl)
 	require.Equal(t, []string{"foo", "bar"}, actual.(*dns.TXT).Txt)
 }
 

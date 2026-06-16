@@ -107,6 +107,45 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			in: []string{
+				"--b--",
+				"! Just a comment.:ignored;",
+				"# DNSGateway: ttl=3600;",
+				"|ya.ru^$dnsrewrite=NOERROR;A;1.2.3.3",
+				"! DNSGateway: ttl=120;",
+				"|txt.example.com^$dnsrewrite=NOERROR;TXT;foo",
+				"--e--",
+			},
+			out: &Storage{
+				before: []string{
+					"--b--",
+				},
+				rules: []Rule{
+					{
+						Rule: &upstream.Rule{
+							Name:     "ya.ru.",
+							Type:     dns.TypeA,
+							TTL:      3600,
+							Value:    net.ParseIP("1.2.3.3"),
+							ValueStr: "1.2.3.3",
+						},
+					},
+					{
+						Rule: &upstream.Rule{
+							Name:     "txt.example.com.",
+							Type:     dns.TypeTXT,
+							TTL:      120,
+							Value:    []string{"foo"},
+							ValueStr: "foo",
+						},
+					},
+				},
+				after: []string{
+					"--e--",
+				},
+			},
+		},
 	}
 
 	p := NewParser("--b--", "--e--")
@@ -391,4 +430,38 @@ func TestFormat(t *testing.T) {
 			require.Equal(t, tc.out, tc.in.Format())
 		})
 	}
+}
+
+func TestDumpMetadataComments(t *testing.T) {
+	s := &Storage{
+		before: []string{"--b--"},
+		rules: []Rule{
+			{
+				Rule: &upstream.Rule{
+					Name:     "ya.ru.",
+					Type:     dns.TypeA,
+					TTL:      3600,
+					Value:    net.ParseIP("1.2.3.3"),
+					ValueStr: "1.2.3.3",
+				},
+			},
+			{
+				Rule: &upstream.Rule{
+					Name:     "txt.example.com.",
+					Type:     dns.TypeTXT,
+					Value:    []string{"foo"},
+					ValueStr: "foo",
+				},
+			},
+		},
+		after: []string{"--e--"},
+	}
+
+	require.Equal(t, []string{
+		"--b--",
+		"# DNSGateway: ttl=3600;",
+		"|ya.ru^$dnsrewrite=NOERROR;A;1.2.3.3",
+		"|txt.example.com^$dnsrewrite=NOERROR;TXT;foo",
+		"--e--",
+	}, s.Dump())
 }

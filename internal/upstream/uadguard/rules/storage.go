@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"fmt"
+
 	"github.com/buglloc/DNSGateway/internal/upstream"
 )
 
@@ -60,8 +62,17 @@ func (s *Storage) Dump() []string {
 	copy(out, s.before)
 
 	for _, rule := range s.rules {
+		if rule.TTL > 0 {
+			out = append(out, formatMetadataComment(ruleMetadata{
+				ttl: rule.TTL,
+			}))
+		}
 		out = append(out, rule.Format())
 	}
 
 	return append(out, s.after...)
+}
+
+func formatMetadataComment(md ruleMetadata) string {
+	return fmt.Sprintf("# DNSGateway: ttl=%d;", md.ttl)
 }
