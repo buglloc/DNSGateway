@@ -25,7 +25,7 @@ type Listener struct {
 	log       zerolog.Logger
 }
 
-const commitTimeout = time.Minute
+const commitTimeout = 30 * time.Minute
 
 func NewListener(cfg *Config) (*Listener, error) {
 	if err := cfg.Validate(); err != nil {
