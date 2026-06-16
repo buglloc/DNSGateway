@@ -139,12 +139,38 @@ func newRulePTR(name string, valStr string) (Rule, error) {
 }
 
 func newRuleTXT(name string, valStr string) (Rule, error) {
+	txt := parseTXTValue(name, valStr)
 	return Rule{
 		Name:     name,
 		Type:     dns.TypeTXT,
-		Value:    []string{valStr},
-		ValueStr: valStr,
+		Value:    txt,
+		ValueStr: txtValueStr(txt),
 	}, nil
+}
+
+func parseTXTValue(name string, valStr string) []string {
+	if strings.Contains(valStr, `"`) {
+		if rr, err := dns.NewRR(fmt.Sprintf("%s 0 IN TXT %s", name, valStr)); err == nil {
+			if txt, ok := rr.(*dns.TXT); ok {
+				return splitTXTChunks(txt.Txt)
+			}
+		}
+	}
+
+	return splitTXTChunks([]string{valStr})
+}
+
+func splitTXTChunks(in []string) []string {
+	var out []string
+	for _, part := range in {
+		for len(part) > 255 {
+			out = append(out, part[:255])
+			part = part[255:]
+		}
+		out = append(out, part)
+	}
+
+	return out
 }
 
 func newRuleSRV(name string, valStr string) (Rule, error) {
