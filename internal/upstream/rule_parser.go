@@ -12,6 +12,8 @@ import (
 )
 
 func newRule(name string, rrType uint16, valStr string) (Rule, error) {
+	name = fqdn.FQDN(name)
+
 	var out Rule
 	var err error
 	switch rrType {
@@ -106,7 +108,7 @@ func newRuleMX(name string, valStr string) (Rule, error) {
 		return Rule{}, fmt.Errorf("invalid mx preference: %w", err)
 	}
 
-	exch := parts[1]
+	exch := fqdn.FQDN(parts[1])
 	if err := fqdn.ValidateHostname(exch); err != nil {
 		return Rule{}, fmt.Errorf("invalid mx exchange %q: %w", exch, err)
 	}
@@ -118,7 +120,7 @@ func newRuleMX(name string, valStr string) (Rule, error) {
 			Preference: uint16(pref64),
 			Mx:         exch,
 		},
-		ValueStr: valStr,
+		ValueStr: fmt.Sprintf("%d %s", pref64, exch),
 	}, nil
 }
 
@@ -174,6 +176,7 @@ func newRuleSRV(name string, valStr string) (Rule, error) {
 	//   at this domain.
 	//
 	if target != "." {
+		target = fqdn.FQDN(target)
 		if err := fqdn.ValidateHostname(target); err != nil {
 			return Rule{}, fmt.Errorf("invalid srv target %q: %w", target, err)
 		}
@@ -188,7 +191,7 @@ func newRuleSRV(name string, valStr string) (Rule, error) {
 			Port:     uint16(port64),
 			Target:   target,
 		},
-		ValueStr: valStr,
+		ValueStr: fmt.Sprintf("%d %d %d %s", prio64, weight64, port64, target),
 	}, nil
 }
 

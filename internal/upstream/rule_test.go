@@ -50,3 +50,41 @@ func TestRuleSameTXTMatchesChunks(t *testing.T) {
 	require.True(t, stored.Same(&sameChunks))
 	require.False(t, stored.Same(&differentChunks))
 }
+
+func TestRuleRRPacksFQDNs(t *testing.T) {
+	cases := []struct {
+		name    string
+		rrType  uint16
+		content string
+	}{
+		{name: "example.com", rrType: dns.TypeA, content: "192.0.2.1"},
+		{name: "alias.example.com", rrType: dns.TypeCNAME, content: "target.example.com"},
+		{name: "example.com", rrType: dns.TypeMX, content: "10 mail.example.com"},
+		{name: "_xmpp._tcp.example.com", rrType: dns.TypeSRV, content: "10 5 5223 server.example.com"},
+		{name: "1.2.0.192.in-addr.arpa", rrType: dns.TypePTR, content: "ptr.example.com"},
+	}
+
+	for _, tc := range cases {
+		t.Run(TypeString(tc.rrType), func(t *testing.T) {
+			rule, err := NewRule(tc.name, tc.rrType, tc.content)
+			require.NoError(t, err)
+
+			rr, err := rule.RR()
+			require.NoError(t, err)
+
+			msg := new(dns.Msg)
+			msg.SetReply(&dns.Msg{
+				MsgHdr: dns.MsgHdr{Id: 1},
+				Question: []dns.Question{{
+					Name:   "example.com.",
+					Qtype:  dns.TypeAXFR,
+					Qclass: dns.ClassINET,
+				}},
+			})
+			msg.Answer = []dns.RR{rr}
+
+			_, err = msg.Pack()
+			require.NoError(t, err)
+		})
+	}
+}
