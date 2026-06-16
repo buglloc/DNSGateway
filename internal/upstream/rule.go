@@ -16,6 +16,7 @@ type RType = uint16
 type Rule struct {
 	Name     string
 	Type     RType
+	TTL      uint32
 	Value    RValue
 	ValueStr string
 }
@@ -63,6 +64,7 @@ func RuleFromRR(rr dns.RR) (Rule, error) {
 	return Rule{
 		Name:     dns.Fqdn(rr.Header().Name),
 		Type:     rr.Header().Rrtype,
+		TTL:      rr.Header().Ttl,
 		Value:    value,
 		ValueStr: valueStr,
 	}, nil
@@ -73,6 +75,7 @@ func (r *Rule) RR() (dns.RR, error) {
 		Name:   r.Name,
 		Rrtype: r.Type,
 		Class:  dns.ClassINET,
+		Ttl:    r.TTL,
 	}
 
 	switch r.Type {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -16,6 +17,10 @@ import (
 type Parser struct {
 	beginMarker string
 	endMarker   string
+}
+
+type ruleMetadata struct {
+	ttl uint32
 }
 
 func NewParser(beginMarker, endMarker string) *Parser {
@@ -30,6 +35,7 @@ func (p *Parser) Parse(in []string) (*Storage, error) {
 	afterRulesIdx := -1
 	ourRules := make([]Rule, 0)
 	inOurRules := false
+	var metadata ruleMetadata
 	for i, r := range in {
 		if !inOurRules {
 			if r == p.beginMarker {
@@ -44,9 +50,23 @@ func (p *Parser) Parse(in []string) (*Storage, error) {
 			break
 		}
 
+		if md, ok, err := parseMetadataComment(r); ok || err != nil {
+			if err != nil {
+				return nil, fmt.Errorf("invalid rule metadata %q: %w", r, err)
+			}
+
+			metadata = md
+			continue
+		}
+
 		rule, err := p.ParseRule([]byte(r))
 		if err != nil {
 			return nil, fmt.Errorf("invalid rule %q: %w", r, err)
+		}
+
+		if metadata.ttl > 0 {
+			rule.TTL = metadata.ttl
+			metadata = ruleMetadata{}
 		}
 
 		ourRules = append(ourRules, rule)
@@ -77,6 +97,46 @@ func (p *Parser) Parse(in []string) (*Storage, error) {
 		after:  after,
 		rules:  ourRules,
 	}, nil
+}
+
+func parseMetadataComment(in string) (ruleMetadata, bool, error) {
+	const prefix = "DNSGateway:"
+
+	in = strings.TrimSpace(in)
+	if in == "" || (in[0] != '#' && in[0] != '!') {
+		return ruleMetadata{}, false, nil
+	}
+
+	body := strings.TrimSpace(in[1:])
+	if !strings.HasPrefix(body, prefix) {
+		return ruleMetadata{}, true, nil
+	}
+
+	body = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(strings.TrimPrefix(body, prefix)), ";"))
+	if body == "" {
+		return ruleMetadata{}, true, nil
+	}
+
+	var out ruleMetadata
+	for _, field := range strings.FieldsFunc(body, func(r rune) bool {
+		return r == ',' || r == ';'
+	}) {
+		key, value, ok := strings.Cut(strings.TrimSpace(field), "=")
+		if !ok {
+			return ruleMetadata{}, true, fmt.Errorf("invalid metadata field %q", field)
+		}
+
+		switch strings.ToLower(strings.TrimSpace(key)) {
+		case "ttl":
+			ttl64, err := strconv.ParseUint(strings.TrimSpace(value), 10, 32)
+			if err != nil {
+				return ruleMetadata{}, true, fmt.Errorf("invalid ttl: %w", err)
+			}
+			out.ttl = uint32(ttl64)
+		}
+	}
+
+	return out, true, nil
 }
 
 // ParseRule parses AdBlock rule with dnsrewrite option
