@@ -1,6 +1,7 @@
 package upstream
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/miekg/dns"
@@ -68,6 +69,56 @@ func TestRuleRRPacksFQDNs(t *testing.T) {
 		t.Run(TypeString(tc.rrType), func(t *testing.T) {
 			rule, err := NewRule(tc.name, tc.rrType, tc.content)
 			require.NoError(t, err)
+
+			rr, err := rule.RR()
+			require.NoError(t, err)
+
+			msg := new(dns.Msg)
+			msg.SetReply(&dns.Msg{
+				MsgHdr: dns.MsgHdr{Id: 1},
+				Question: []dns.Question{{
+					Name:   "example.com.",
+					Qtype:  dns.TypeAXFR,
+					Qclass: dns.ClassINET,
+				}},
+			})
+			msg.Answer = []dns.RR{rr}
+
+			_, err = msg.Pack()
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestNewRuleTXTChunksValues(t *testing.T) {
+	first := strings.Repeat("a", 200)
+	second := strings.Repeat("b", 100)
+	cases := []struct {
+		name     string
+		content  string
+		value    []string
+		valueStr string
+	}{
+		{
+			name:     "quoted chunks",
+			content:  `"` + first + `" "` + second + `"`,
+			value:    []string{first, second},
+			valueStr: first + second,
+		},
+		{
+			name:     "long raw value",
+			content:  strings.Repeat("a", 300),
+			value:    []string{strings.Repeat("a", 255), strings.Repeat("a", 45)},
+			valueStr: strings.Repeat("a", 300),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rule, err := NewRule("txt.example.com", dns.TypeTXT, tc.content)
+			require.NoError(t, err)
+			require.Equal(t, tc.value, rule.Value)
+			require.Equal(t, tc.valueStr, rule.ValueStr)
 
 			rr, err := rule.RR()
 			require.NoError(t, err)

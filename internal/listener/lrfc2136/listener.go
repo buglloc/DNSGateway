@@ -147,38 +147,63 @@ func (a *Listener) serveDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	return nil
 }
 
-func (a *Listener) handleXFRTransfer(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) error {
+func (a *Listener) handleXFRTransfer(ctx context.Context, w dns.ResponseWriter, q *dns.Msg) error {
 	log.Ctx(ctx).Info().Msg("handle XFR transfer")
-	client, err := a.clients.Client(r)
+	client, err := a.clients.Client(q)
 	if err != nil {
 		return err
 	}
 
-	if !isXRFRequest(r) {
+	if !isXRFRequest(q) {
 		return errors.New("invalid XFR request")
 	}
 
 	if !client.IsXFRAllowed() {
-		return fmt.Errorf("XFR is not allowed for client %q", r.IsTsig().Hdr.Name)
+		return fmt.Errorf("XFR is not allowed for client %q", q.IsTsig().Hdr.Name)
 	}
 
 	ch := make(chan *dns.Envelope)
-	tr := new(dns.Transfer)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 
-		if err := tr.Out(w, r, ch); err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("unable to write transfer")
+		for x := range ch {
+			if err != nil {
+				continue
+			}
+			if x == nil {
+				continue
+			}
+
+			r := new(dns.Msg)
+			// Compress?
+			r.SetReply(q)
+			r.Authoritative = true
+			r.Answer = append(r.Answer, x.RR...)
+			if tsig := q.IsTsig(); tsig != nil && w.TsigStatus() == nil {
+				r.SetTsig(tsig.Hdr.Name, tsig.Algorithm, tsig.Fudge, time.Now().Unix())
+			}
+
+			if wErr := w.WriteMsg(r); wErr != nil {
+				log.Ctx(ctx).Error().
+					Err(wErr).
+					Any("rrs", x.RR).
+					Msg("unable to write transfer")
+
+				err = fmt.Errorf("write transfer: %w", wErr)
+				continue
+			}
+
+			w.TsigTimersOnly(true)
 		}
 	}()
 
-	a.handleXFRQuestion(ctx, client, r.Question[0], ch)
+	a.handleXFRQuestion(ctx, client, q.Question[0], ch)
 	close(ch)
 
 	<-done
 	_ = w.Close()
-	return nil
+	return err
 }
 
 func (a *Listener) handleXFRQuestion(ctx context.Context, client *Client, q dns.Question, out chan *dns.Envelope) {
@@ -225,7 +250,10 @@ func (a *Listener) handleXFRQuestion(ctx context.Context, client *Client, q dns.
 			rr, err := rule.RR()
 			if err != nil {
 				log.Ctx(ctx).Error().Err(err).Str("name", rule.Name).Msg("unable to generate rr")
-				continue
+				out <- &dns.Envelope{
+					Error: fmt.Errorf("generate RR for %q: %w", rule.Name, err),
+				}
+				return
 			}
 
 			rrs = append(rrs, rr)
